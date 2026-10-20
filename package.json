@@ -1,0 +1,30 @@
+{
+  "name": "squarelands",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "方域 · 多人城市经营与贸易游戏",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "node server/index.js",
+    "server": "node server/index.js",
+    "desktop": "electron .",
+    "server:app": "electron electron/server-main.cjs",
+    "test": "node --test",
+    "check": "node scripts/check.mjs",
+    "icons": "node scripts/icons.mjs",
+    "pack": "node scripts/package.mjs all",
+    "pack:client": "node scripts/package.mjs client",
+    "pack:server": "node scripts/package.mjs server",
+    "pack:all": "node scripts/package.mjs all all",
+    "checksums": "node scripts/checksums.mjs"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "electron": "42.11.16",
+    "electron-builder": "26.15.3"
+  },
+  "author": "Squarelands contributors"
+}

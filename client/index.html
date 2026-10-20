@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>方域 · Squarelands</title><link rel="stylesheet" href="/client/style.css"></head>
+<body>
+  <div id="auth" class="auth-screen">
+    <canvas id="auth-map"></canvas><div class="auth-shade"></div>
+    <div class="auth-brand"><span class="brand-mark">▧</span> 方域 <small>SQUARELANDS</small></div>
+    <main class="auth-content"><div class="eyebrow">A WORLD OF YOUR OWN MAKING</div><h1>从一方土地，<br>到万家灯火。</h1><p>在河流与山脉之间安放第一座城。<br>让资源流动，让文明生长。</p><div class="auth-details"><span>程序生成世界</span><i></i><span>实时城市经营</span><i></i><span>玩家自由贸易</span></div></main>
+    <form id="auth-form" class="auth-card"><div class="eyebrow">WELCOME TO SQUARELANDS</div><h2 id="auth-title">回到你的世界</h2><p id="auth-description">登录账户，继续书写城市的故事。</p><label>用户名<input name="username" autocomplete="username" minlength="2" maxlength="20" required placeholder="输入用户名"></label><label>密码<input name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required placeholder="至少 8 位密码"></label><div id="auth-error" class="error"></div><button class="primary" type="submit" id="auth-submit">进入方域 <span>→</span></button><button id="auth-toggle" class="text-button" type="button">初次到访？创建账户 ↗</button><div class="auth-note">同一服务器的玩家共享一个持续运转的世界。</div></form>
+    <footer class="auth-footer">方域 / SQUARELANDS <span>一砖一瓦，皆为未来。</span></footer>
+  </div>
+  <div id="game" hidden>
+    <header class="topbar"><div class="brand"><span class="brand-mark">▧</span><b>方域</b><span class="brand-en">SQUARELANDS</span></div><nav id="nav"><button data-tab="world" class="active">◈ 世界地图</button><button data-tab="cities">▥ 城市管理</button><button data-tab="market">⇄ 全球贸易</button><button data-tab="logistics">⌁ 运输网络</button></nav><div class="account"><span id="connection" class="status-dot"></span><span id="username"></span><button id="help-button" title="玩法说明">?</button><button id="logout" title="退出登录">↗</button></div></header>
+    <div class="resourcebar" id="resources"></div>
+    <main class="workspace">
+      <aside class="sidebar"><div class="eyebrow">YOUR EMPIRE</div><div class="sidebar-title">我的城邦 <span id="city-count">00</span></div><div id="city-list"></div><button id="new-city" class="outline full">＋ 开拓新城</button><div class="sidebar-section"><div class="eyebrow">WORLD OVERVIEW</div><div id="world-summary"></div></div><div class="sidebar-bottom"><div class="live-label"><span class="status-dot"></span> 世界正在运转</div><span>30 秒 / 生产周期</span><span id="world-seed"></span></div></aside>
+      <section class="main-content"><div class="page-heading"><div><div class="eyebrow" id="page-kicker">THE LIVING WORLD</div><h1 id="page-title">山河之间，皆有可能<span>探索 · 建设 · 生长</span></h1></div><div id="page-actions"><button class="outline" id="center-map">⌖ 返回城池</button></div></div>
+        <section id="world-panel" class="tab-panel"><div class="map-container"><canvas id="map"></canvas><div class="map-badge"><span class="status-dot"></span> 实时世界 <span id="map-coord">40 × 32</span></div><div class="map-hint" id="map-hint">点击地块查看详情 · 拖动探索 · 滚轮缩放</div><div class="map-tools"><button id="zoom-in" title="放大">＋</button><button id="zoom-out" title="缩小">−</button><button id="fit-map" title="查看全图">⌗</button></div><div id="found-banner" hidden>选择无主陆地建立城池 <button id="cancel-found">取消</button></div></div><div class="map-legend"><span><i style="background:#657e50"></i>平原</span><span><i style="background:#727851"></i>丘陵</span><span><i style="background:#9a8a65"></i>高原</span><span><i style="background:#798387"></i>山脉</span><span><i style="background:#50869a"></i>水域</span><span class="legend-right">□ 你的领地 <b>□</b> 其他城邦</span></div><div id="world-bottom" class="bottom-grid"></div></section>
+        <section id="cities-panel" class="tab-panel" hidden></section>
+        <section id="market-panel" class="tab-panel" hidden></section>
+        <section id="logistics-panel" class="tab-panel" hidden></section>
+        <section id="admin-panel" class="tab-panel" hidden></section>
+      </section>
+      <aside class="inspector"><div id="inspector"></div><div class="activity"><div class="section-heading">城邦动态 <span>LIVE</span></div><div id="events"></div></div></aside>
+    </main><footer class="game-footer"><span id="footer-status">已连接至世界服务器</span><span>方域 · SQUARELANDS <i>EARLY ACCESS / 1.0</i></span></footer>
+  </div>
+  <dialog id="dialog"><div id="dialog-content"></div><button id="close-dialog" class="dialog-close" aria-label="关闭">×</button></dialog>
+  <div id="toasts" aria-live="polite"></div><script type="module" src="/client/app.js"></script>
+</body></html>

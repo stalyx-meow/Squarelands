@@ -1,0 +1,50 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { mkdtemp, rm, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createServer } from 'node:net';
+import { once } from 'node:events';
+import { fileURLToPath } from 'node:url';
+const require = createRequire(import.meta.url);
+const { normalizeAddress, validateServerConfig, readSettings, writeSettings } = require('../electron/settings.cjs');
+const { ServerController } = require('../electron/server-controller.cjs');
+test('connection addresses accept IPs, domains, HTTPS and IPv6, rejecting unsafe formats', () => {
+  assert.equal(normalizeAddress('192.168.1.10'), 'http://192.168.1.10:3210');
+  assert.equal(normalizeAddress('game.example.com:8080'), 'http://game.example.com:8080');
+  assert.equal(normalizeAddress('https://game.example.com'), 'https://game.example.com');
+  assert.equal(normalizeAddress('http://localhost:3210/'), 'http://localhost:3210');
+  assert.equal(normalizeAddress('::1'), 'http://[::1]:3210');
+  assert.equal(normalizeAddress('[::1]:1234'), 'http://[::1]:1234');
+  for (const value of ['', 'file:///etc/passwd', 'javascript://x', 'https://user:pass@example.com', 'http://x/path', 'http://x/?token=secret', 'http://x/#foo', 'http://x:99999']) assert.throws(() => normalizeAddress(value));
+});
+test('server config validates port and host and settings persist outside application files', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'squarelands-config-'));t.after(() => rm(dir,{recursive:true,force:true}));
+  for(const port of [0,80,65536,3210.5,NaN])assert.throws(()=>validateServerConfig({host:'0.0.0.0',port}));
+  assert.throws(()=>validateServerConfig({host:'example.com',port:3210}));
+  const settings=validateServerConfig({host:'127.0.0.1',port:3210,autoStart:true});
+  const file=join(dir,'config.json');writeSettings(file,settings);assert.deepEqual(readSettings(file,{}),settings);
+  assert.deepEqual(readSettings(join(dir,'missing.json'),settings),settings);
+});
+test('GUI server lifecycle sends bootstrap credentials through IPC and stops without orphaning the server', async t => {
+  const dir = await mkdtemp(join(tmpdir(),'squarelands-gui-'));
+  const socket=createServer();socket.listen(0,'127.0.0.1');await once(socket,'listening');const port=socket.address().port;await new Promise(resolve=>socket.close(resolve));
+  const controller=new ServerController({entry:fileURLToPath(new URL('../server/index.js',import.meta.url)),dataDir:dir,config:{host:'127.0.0.1',port,autoStart:true}});
+  t.after(async()=>{await controller.stop();await rm(dir,{recursive:true,force:true});});
+  const initial=await controller.start();assert.equal(initial.status,'running');assert.ok(initial.initialPassword.length>=10);
+  assert.ok(!initial.logs.join('\n').includes(initial.initialPassword),'bootstrap password must not leak to logs');
+  const health=await (await fetch(initial.localUrl+'/api/health')).json();assert.equal(health.service,'squarelands');assert.equal(health.protocol,1);
+  const login=await fetch(initial.localUrl+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:'root',password:initial.initialPassword})});assert.equal(login.status,200);
+  await assert.rejects(controller.start(),/已在运行/);
+  const localUrl=initial.localUrl;await controller.stop();assert.equal(controller.status,'stopped');assert.equal(controller.child,null);
+  await assert.rejects(fetch(localUrl+'/api/health'));
+  assert.ok((await readFile(join(dir,'game.sqlite'))).length>0);
+  controller.password=null;const restarted=await controller.start();assert.equal(restarted.initialPassword,null);await controller.stop();
+});
+test('GUI server reports occupied ports instead of silently attaching to another service',async t=>{
+  const dir=await mkdtemp(join(tmpdir(),'squarelands-conflict-')),socket=createServer();socket.listen(0,'127.0.0.1');await once(socket,'listening');
+  const controller=new ServerController({entry:fileURLToPath(new URL('../server/index.js',import.meta.url)),dataDir:dir,config:{host:'127.0.0.1',port:socket.address().port}});
+  t.after(async()=>{await controller.stop();await new Promise(resolve=>socket.close(resolve));await rm(dir,{recursive:true,force:true});});
+  await assert.rejects(controller.start(),/未能启动/);assert.equal(controller.status,'error');assert.match(controller.logs.join('\n'),/EADDRINUSE/);
+});

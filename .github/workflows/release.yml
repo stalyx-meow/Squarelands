@@ -1,0 +1,38 @@
+name: Build desktop apps
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  build:
+    name: ${{ matrix.role }} · ${{ matrix.platform.target }} · ${{ matrix.platform.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        role: [client, server]
+        platform:
+          - { os: macos-latest, target: mac, arch: arm64 }
+          - { os: macos-15-intel, target: mac, arch: x64 }
+          - { os: windows-latest, target: win, arch: x64 }
+          - { os: ubuntu-latest, target: linux, arch: x64 }
+    runs-on: ${{ matrix.platform.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24', cache: npm }
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - name: Build portable app
+        run: node scripts/package.mjs ${{ matrix.role }} ${{ matrix.platform.target }} ${{ matrix.platform.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Squarelands-${{ matrix.role }}-${{ matrix.platform.target }}-${{ matrix.platform.arch }}
+          path: |
+            dist/${{ matrix.role }}/*.zip
+            dist/${{ matrix.role }}/*.tar.gz
+            dist/${{ matrix.role }}/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30

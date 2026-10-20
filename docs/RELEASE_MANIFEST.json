@@ -1,0 +1,45 @@
+{
+  "version": "1.1.0",
+  "files": [
+    {
+      "role": "client",
+      "file": "Squarelands-Client-1.1.0-linux-x64.tar.gz",
+      "bytes": 120236631
+    },
+    {
+      "role": "client",
+      "file": "Squarelands-Client-1.1.0-mac-arm64.zip",
+      "bytes": 118680341
+    },
+    {
+      "role": "client",
+      "file": "Squarelands-Client-1.1.0-mac-x64.zip",
+      "bytes": 122828975
+    },
+    {
+      "role": "client",
+      "file": "Squarelands-Client-1.1.0-win-x64.zip",
+      "bytes": 144293198
+    },
+    {
+      "role": "server",
+      "file": "Squarelands-Server-1.1.0-linux-x64.tar.gz",
+      "bytes": 120274468
+    },
+    {
+      "role": "server",
+      "file": "Squarelands-Server-1.1.0-mac-arm64.zip",
+      "bytes": 118719301
+    },
+    {
+      "role": "server",
+      "file": "Squarelands-Server-1.1.0-mac-x64.zip",
+      "bytes": 122867935
+    },
+    {
+      "role": "server",
+      "file": "Squarelands-Server-1.1.0-win-x64.zip",
+      "bytes": 144330795
+    }
+  ]
+}
