@@ -1,6 +1,6 @@
 {
   "version": "1.2.0",
-  "commit": "0b8338e9154a97dd81de8af806b6afd530e537fa",
+  "commit": "9110a64622144c7cb2eb55466fa1014cb3463892",
   "files": [
     {
       "role": "client",
@@ -29,26 +29,26 @@
     {
       "role": "server",
       "file": "Squarelands-Server-1.2.0-mac-arm64.zip",
-      "bytes": 118761292,
-      "sha256": "aae7604cd361ff9cc0b0ebe8b12d6b061c5ca170afb71f8bd76f63f4e3d4a574"
+      "bytes": 118762173,
+      "sha256": "1595ec1d079749887e86ac112c4e26ed59119e507c8a60dffe462b91bb3afb44"
     },
     {
       "role": "server",
       "file": "Squarelands-Server-1.2.0-mac-x64.zip",
-      "bytes": 122909926,
-      "sha256": "4cf13d4f23b0b3bf3006630e40c92b069f28d8a2aee10aa8cad6e0bbd143fda2"
+      "bytes": 122910807,
+      "sha256": "31cb95add4502d4d8ecd702b9a2a60e156573ae2c2010d9677b917e1bc45d7b4"
     },
     {
       "role": "server",
       "file": "Squarelands-Server-1.2.0-win-x64.zip",
-      "bytes": 145279997,
-      "sha256": "453cdb4f9c8de3790c165b46f4792e25d95dfdb49509740eb74fbc8c39dc7706"
+      "bytes": 145280760,
+      "sha256": "088fdd88645956c2f2f5081423f0582dbb00c6f71f9d3b2dc68db0f3360a191f"
     },
     {
       "role": "server",
       "file": "Squarelands-Server-1.2.0-linux-x64.tar.gz",
-      "bytes": 121470200,
-      "sha256": "9e083415d1831cd3f468390398c3a9aa02d46720c931d4e35e955e3680a49aea"
+      "bytes": 121471039,
+      "sha256": "2e003ea668430779cd7e1ebdaf760398a34f096b5ad2f56636de4bc8e869c30e"
     }
   ]
 }
