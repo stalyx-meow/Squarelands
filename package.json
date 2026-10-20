@@ -26,5 +26,6 @@
     "electron": "42.11.16",
     "electron-builder": "26.15.3"
   },
-  "author": "Squarelands contributors"
+  "author": "Squarelands contributors",
+  "license": "MIT"
 }

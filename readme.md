@@ -225,3 +225,7 @@ macOS 打包脚本会读取系统已启用的 HTTPS 代理，仅用于下载，�
 本次在 macOS Apple 芯片上实测打包后的客户端连接、服务端启动与安全停止；Windows、Linux 和 Intel Mac 包已交叉构建，**未在对应实体系统上进行交互实测**。账号密码使用 scrypt 加盐存储；远程游戏页无 Node 权限，桌面 IPC 仅开放给本地控制台。
 
 原始需求保留于 [docs/ORIGINAL_REQUIREMENTS.md](docs/ORIGINAL_REQUIREMENTS.md)。
+
+## 许可证
+
+本项目原创内容使用 [MIT License](LICENSE)。Electron 及其他第三方组件保留各自的许可证；应用包中的第三方许可文件同样适用。

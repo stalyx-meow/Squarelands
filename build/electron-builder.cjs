@@ -9,12 +9,12 @@ module.exports = {
   artifactName: `Squarelands-${server ? 'Server' : 'Client'}-\${version}-\${os}-\${arch}.\${ext}`,
   extraMetadata: { main: server ? 'electron/server-main.cjs' : 'electron/main.cjs', squarelandsRole: role },
   files: [
-    'package.json',
+    'package.json', 'LICENSE',
     'electron/settings.cjs', 'electron/ui/desktop.css',
     ...(server ? ['electron/server-main.cjs', 'electron/server-controller.cjs', 'electron/server-preload.cjs', 'electron/ui/server.html', 'electron/ui/server.js', 'server/**', 'shared/**', 'client/**'] : ['electron/main.cjs', 'electron/client-preload.cjs', 'electron/ui/client.html', 'electron/ui/client.js']),
     '!**/*.map', '!**/node_modules/**'
   ],
-  extraFiles: [{ from: 'docs/QUICKSTART.txt', to: 'QUICKSTART.txt' }],
+  extraFiles: [{ from: 'docs/QUICKSTART.txt', to: 'QUICKSTART.txt' }, { from: 'LICENSE', to: 'SQUARELANDS-LICENSE.txt' }],
   asar: true,
   npmRebuild: false,
   // Use the hashes shipped in the pinned official electron npm package, including when a download mirror is used.
