@@ -10,7 +10,7 @@ module.exports = {
   extraMetadata: { main: server ? 'electron/server-main.cjs' : 'electron/main.cjs', squarelandsRole: role },
   files: [
     'package.json', 'LICENSE',
-    'electron/settings.cjs', 'electron/ui/desktop.css',
+    'electron/settings.cjs', 'electron/ui/desktop.css', 'electron/ui/i18n.js', 'shared/i18n.js',
     ...(server ? ['electron/server-main.cjs', 'electron/server-controller.cjs', 'electron/server-preload.cjs', 'electron/ui/server.html', 'electron/ui/server.js', 'server/**', 'shared/**', 'client/**'] : ['electron/main.cjs', 'electron/client-preload.cjs', 'electron/ui/client.html', 'electron/ui/client.js']),
     '!**/*.map', '!**/node_modules/**'
   ],

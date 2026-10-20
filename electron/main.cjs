@@ -39,8 +39,8 @@ async function connect(value) {
 async function start() {
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
-    { label: '游戏', submenu: [{ label: '切换服务器', click: () => { gameWindow?.close(); launcher?.show(); } }, { role: 'quit', label: '退出' }] },
-    { role: 'editMenu', label: '编辑' }, { role: 'viewMenu', label: '视图' }
+    { label: '游戏 / Game', submenu: [{ label: '切换服务器 / Switch server', click: () => { gameWindow?.close(); launcher?.show(); } }, { role: 'quit', label: '退出 / Quit' }] },
+    { role: 'editMenu', label: '编辑 / Edit' }, { role: 'viewMenu', label: '视图 / View' }
   ]));
   ipcMain.handle('client:settings', event => { trusted(event); return settings(); });
   ipcMain.handle('client:connect', async (event, address) => { trusted(event); try { return { ok: true, ...await connect(address) }; } catch (error) { return { ok: false, error: error.message }; } });

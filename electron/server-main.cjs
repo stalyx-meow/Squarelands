@@ -63,7 +63,7 @@ async function start() {
   });
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     ...(process.platform === 'darwin' ? [{ role: 'appMenu' }] : []),
-    { role: 'fileMenu', label: '文件' }, { role: 'editMenu', label: '编辑' }, { role: 'viewMenu', label: '视图' }
+    { role: 'fileMenu', label: '文件 / File' }, { role: 'editMenu', label: '编辑 / Edit' }, { role: 'viewMenu', label: '视图 / View' }
   ]));
   win = new BrowserWindow({ width: 1150, height: 920, minWidth: 850, minHeight: 700, backgroundColor: '#101b20', title: '方域服务端 · 世界控制台', webPreferences: { preload: path.join(__dirname, 'server-preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));

@@ -12,13 +12,19 @@
 | `electron/ui/` | 两种桌面应用的本地页面；不依赖外部网络资源 |
 | `server/index.js` | HTTP、scrypt 登录、Cookie 会话、SQLite、root 管理、健康检查 |
 | `server/game.js` | 权威模拟、建设、生产、人口、合约、运输、寻路与领地 |
+| `server/features.js` | 自动补给、阈值出售、转让、渗透与消息 |
+| `server/settings.js` | 421 项数值的默认值、范围与关联校验 |
+| `server/state.js` | 存档版本、迁移与库存校验 |
+| `server/routing.js` | 最小堆寻路与玩家通行覆盖 |
+| `shared/money.js` | 整数分计价与锁定结算金额 |
+| `shared/i18n.js` | 游戏和桌面页面共用中英文目录 |
 | `server/world.js` | 带种子的世界生成 |
 | `shared/config.js` | 地形、建筑、价格与数值 |
 | `build/electron-builder.cjs` | 两种角色的打包白名单、图标、产物格式与命名 |
 | `scripts/` | 全文件语法检查、图标生成、跨平台构建、SHA-256 清单 |
 | `test/` | 规则与真实 HTTP / 子进程测试 |
 
-发布包没有生产 npm 依赖。Electron 内置 Node.js 和 SQLite，游戏图形由 Canvas 程序绘制。服务端是权威状态源，客户端每 2 秒轮询同步。数据库每 2 秒落盘，失败的游戏写操作会恢复事务前的内存快照。
+发布包没有生产 npm 依赖。Electron 内置 Node.js 和 SQLite，游戏图形由 Canvas 程序绘制。服务端是权威状态源，客户端每 2 秒轮询同步。数据库默认每 2 秒落盘。账号/会话管理与世界保存使用同一个 SQLite 事务；保存失败时同时回滚 SQL 与内存。结算保存失败也恢复内存快照。
 
 ## 源码运行
 
@@ -60,6 +66,7 @@ npm run server
 | `PORT` | `3210` | HTTP 端口 |
 | `DATA_DIR` | 项目 `data/` | SQLite 所在目录，建议绝对路径 |
 | `ROOT_PASSWORD` | 首次随机生成 | 仅首次创建 root 生效，随机密码打印在终端 |
+| `TRUSTED_PROXIES` | 空 | 逗号分隔的可信代理 IP/CIDR；仅信任这些来源转发的客户端 IP |
 | `COOKIE_SECURE` | 未开启 | 设置 `1` 后 Cookie 标为 Secure，供 HTTPS 反代使用 |
 
 图形服务端自己管理 `HOST`、`PORT` 和 Cookie 配置，固定使用随机 root 初始密码；不会继承 shell 中的 `ROOT_PASSWORD`。GUI 通过受限的本机 IPC 显示初始密码，而不是写入日志。
@@ -80,6 +87,8 @@ location / {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 }
 ```
+
+仅代理在本机时可设置 `TRUSTED_PROXIES=127.0.0.1,::1`。有多级代理时列出实际受控的代理地址/CIDR，不要把任意公网地址设为可信。从右向左剥离可信代理链，遇到非可信地址停止。无此配置时不采信 X-Forwarded-For。
 
 客户端填 `https://game.example.com`。打开 GUI 的 Secure Cookie，或命令行设置 `COOKIE_SECURE=1`。必须保留 Host，才能通过同源写请求检查。当前不支持部署在 URL 子路径下；为游戏分配独立域名或根路径。代理、防火墙、证书与公网路由需由服主配置。
 
@@ -155,3 +164,12 @@ npm test
 4. 控制台安全停止、重新启动，并恢复已有世界。
 
 其他系统的交互行为仍需在目标系统上验证；交叉打包成功不等于已经完成目标平台实机验证。
+
+## v1.2 开发说明
+
+- `/api/state?world=种子:修订号` 在地图未变化时省略 tiles，客户端复用已有地图，扩图时重新获取。坐标通过 minX/minY 支持负数。
+- root 参数通过 `/api/admin` 的 `settings` 操作原子保存，只接受登记的数值字段，禁止新增键及原型链键。
+- 存档 schemaVersion=2；旧合约保留旧每期金额、托管和赔付，不按新规则重算。迁移前自动备份原始 JSON。
+- 中英文目录为 `shared/i18n.js`，用户生成内容原文保留；中英文内置手册分别在 `client/guide.js`、`client/guide-en.js`，读取实时参数。
+- 回归测试覆盖审查报告 B01–B10。Windows 路径使用 path.win32 做逻辑验证，不等于在 Windows 实机运行。
+- 性能仍受单进程与 SQLite 同步存档限制，大地图和大量玩家需按实际负载测试。

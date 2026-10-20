@@ -9,7 +9,8 @@ function normalizeAddress(value) {
   catch { throw new Error('地址无效，例如 192.168.1.10:3210 或 https://game.example.com'); }
   if (!['http:', 'https:'].includes(url.protocol) || !url.hostname || url.username || url.password) throw new Error('仅支持不包含账号密码的 HTTP / HTTPS 地址');
   if (url.pathname !== '/' || url.search || url.hash) throw new Error('地址不要包含页面路径、查询参数或锚点');
-  if (!explicit && !url.port) url.port = '3210';
+  const hasExplicitPort = net.isIP(input) !== 6 && /(?:\]|[^:]):\d+$/.test(input);
+  if (!explicit && !hasExplicitPort && !url.port) url.port = '3210';
   return url.origin;
 }
 function validateServerConfig(value) {
