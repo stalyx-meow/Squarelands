@@ -173,3 +173,7 @@ npm test
 - 中英文目录为 `shared/i18n.js`，用户生成内容原文保留；中英文内置手册分别在 `client/guide.js`、`client/guide-en.js`，读取实时参数。
 - 回归测试覆盖审查报告 B01–B10。Windows 路径使用 path.win32 做逻辑验证，不等于在 Windows 实机运行。
 - 性能仍受单进程与 SQLite 同步存档限制，大地图和大量玩家需按实际负载测试。
+
+## 轻量代码包
+
+`npm run pack:update` 生成 `dist/update/*.squarelands-update.gz` 与 SHA256SUMS。包包含 server/client/shared，使用 gzip 压缩的 JSON 清单、逐文件 SHA-256，最多 32 MiB 解压数据；不包含存档、依赖和 Electron。服务端安装到 userData/code-updates，原子切换 active.json；停止服务端后安装/回退。修改原生控制台或运行时仍须构建完整服务端。标签工作流仅发布小包；完整桌面工作流手动运行。

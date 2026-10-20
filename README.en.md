@@ -2,12 +2,20 @@
 
 [中文](readme.md) · [Gameplay and balance](GAMEPLAY.md) · [Development](DEVELOPMENT.md) · [Downloads](https://github.com/stalyx-meow/Squarelands/releases)
 
-A multiplayer city-building and trading game with a standalone Electron client and server. Players enter the server IP or domain to join a persistent shared world. The current version is **1.2.0**. Check the version when downloading; 1.1.0 packages do not include these new features.
+A multiplayer city-building and trading game with a standalone Electron client and server. Players enter the server IP or domain to join a persistent shared world. The current version is **1.2.1**. Check the version when downloading; 1.1.0 packages do not include these new features.
+
+## Lightweight updates (1.2.1+)
+
+Routine releases ship one approximately 115 KiB `.squarelands-update.gz` code bundle for Windows, Linux and macOS. Clients load gameplay from the server; reconnect to update the interface. Existing 1.2.0 clients remain compatible.
+
+Servers older than 1.2.1 need a **one-time full server app upgrade** to gain the installer. Keep the existing data directory. Stop and back up the world, choose **Install update** in the console, select the official bundle without extracting it, then start the world. The console displays the Core version. Code updates preserve accounts, saves and console settings. Rollback restores code only, not save data. Only trusted bundles should be installed; hashes detect corruption, not publisher identity. This format requires save schema 2 and runtime API 1.
+
+Full applications are rebuilt only for initial installation or native launcher/Electron changes. Tags automatically publish the small bundle; full desktop builds are manual GitHub Actions runs.
 
 ## What is new
 
 - Automatic intercity supply, including funds, using real freight costs and transport workers.
-- Full resource inventories in a responsive grid, raw ores, smelters/refineries, fuel and expanded food/clothing chains.
+- Full categorized resource inventories on a dedicated Storage page, raw ores, smelters/refineries, fuel and expanded food/clothing chains.
 - Manual territory claims; city upgrades increase capacity. Maps expand near claimed borders.
 - Per-player transit policies and automatic sale thresholds per resource.
 - City sales, purchases, border walls and infiltration with a visible success probability.

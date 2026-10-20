@@ -44,7 +44,7 @@ const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url,'http://localhost');
     if(url.pathname.startsWith('/api/')){
-      if(req.method==='GET'&&url.pathname==='/api/health')return json(200,{service:'squarelands',protocol:1,version:'1.2.0'});
+      if(req.method==='GET'&&url.pathname==='/api/health')return json(200,{service:'squarelands',protocol:1,version:'1.2.1'});
       if(req.method==='POST'&&req.headers.origin&&req.headers.origin!==`http://${req.headers.host}`&&req.headers.origin!==`https://${req.headers.host}`)return json(403,{error:'请求来源不受信任'});
       if(req.method==='POST')limiter(`overall:${clientIP(req)}`,600);
       if(url.pathname==='/api/login'||url.pathname==='/api/register'){

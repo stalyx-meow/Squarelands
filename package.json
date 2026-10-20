@@ -1,6 +1,6 @@
 {
   "name": "squarelands",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "type": "module",
   "description": "方域 · 多人城市经营与贸易游戏",
@@ -17,7 +17,8 @@
     "pack:client": "node scripts/package.mjs client",
     "pack:server": "node scripts/package.mjs server",
     "pack:all": "node scripts/package.mjs all all",
-    "checksums": "node scripts/checksums.mjs"
+    "checksums": "node scripts/checksums.mjs",
+    "pack:update": "node scripts/package-update.mjs"
   },
   "engines": {
     "node": ">=24"

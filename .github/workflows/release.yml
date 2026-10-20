@@ -1,8 +1,6 @@
 name: Build desktop apps
 on:
   workflow_dispatch:
-  push:
-    tags: ['v*']
 permissions:
   contents: read
 jobs:

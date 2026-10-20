@@ -7,6 +7,8 @@ function render(value) {
   const names = { starting: '正在启动', running: '世界运行中', stopping: '正在保存并停止', stopped: '已停止', error: '启动 / 运行异常' };
   $('#status span').textContent = names[state.status]; $('#status').className = `badge ${state.status === 'running' ? '' : state.status === 'error' ? 'error-state' : 'stopped'}`;
   const busy = ['starting', 'running', 'stopping'].includes(state.status);
+  $('#core-version').textContent = state.coreVersion;
+  $('#install-update').disabled = busy; $('#rollback-update').disabled = busy || !state.canRollback;
   $('#start').disabled = busy; $('#stop').disabled = !['running', 'starting'].includes(state.status);
   $('#save-config').disabled = busy; $('#backup').disabled = busy; $('#open-world').disabled = state.status !== 'running';
   for (const id of ['host', 'port', 'auto-start', 'secure-cookie']) $(`#${id}`).disabled = busy;
@@ -41,3 +43,6 @@ $('#backup').onclick = async () => { const destination = await run(() => window.
 $('#hide-password').onclick = () => { hiddenPassword = true; render(state); };
 window.serverApp.onChange(render);
 run(() => window.serverApp.state());
+
+$('#install-update').onclick = () => run(() => window.serverApp.installUpdate());
+$('#rollback-update').onclick = () => run(() => window.serverApp.rollbackUpdate());

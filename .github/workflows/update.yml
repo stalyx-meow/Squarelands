@@ -1,0 +1,28 @@
+name: Publish lightweight update
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
+      - run: npm run check
+      - run: npm test
+      - run: npm run pack:update
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Squarelands-universal-update
+          path: dist/update/*
+      - name: Attach update to release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" || gh release create "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" dist/update/* --clobber

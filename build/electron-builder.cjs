@@ -5,13 +5,13 @@ module.exports = {
   appId: `games.squarelands.${role}`,
   productName: server ? 'Squarelands Server' : 'Squarelands Client',
   copyright: 'Squarelands contributors',
-  directories: { output: `dist/${role}`, buildResources: 'build/icons' },
+  directories: { output: process.env.SQUARELANDS_BUILD_OUTPUT || `dist/${role}`, buildResources: 'build/icons' },
   artifactName: `Squarelands-${server ? 'Server' : 'Client'}-\${version}-\${os}-\${arch}.\${ext}`,
   extraMetadata: { main: server ? 'electron/server-main.cjs' : 'electron/main.cjs', squarelandsRole: role },
   files: [
     'package.json', 'LICENSE',
     'electron/settings.cjs', 'electron/ui/desktop.css', 'electron/ui/i18n.js', 'shared/i18n.js',
-    ...(server ? ['electron/server-main.cjs', 'electron/server-controller.cjs', 'electron/server-preload.cjs', 'electron/ui/server.html', 'electron/ui/server.js', 'server/**', 'shared/**', 'client/**'] : ['electron/main.cjs', 'electron/client-preload.cjs', 'electron/ui/client.html', 'electron/ui/client.js']),
+    ...(server ? ['electron/core-update.cjs', 'electron/server-main.cjs', 'electron/server-controller.cjs', 'electron/server-preload.cjs', 'electron/ui/server.html', 'electron/ui/server.js', 'server/**', 'shared/**', 'client/**'] : ['electron/main.cjs', 'electron/client-preload.cjs', 'electron/ui/client.html', 'electron/ui/client.js']),
     '!**/*.map', '!**/node_modules/**'
   ],
   extraFiles: [{ from: 'docs/QUICKSTART.txt', to: 'QUICKSTART.txt' }, { from: 'LICENSE', to: 'SQUARELANDS-LICENSE.txt' }],

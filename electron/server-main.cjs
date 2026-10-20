@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell, clipboard, Menu } = require(
 const path = require('node:path');
 const fs = require('node:fs');
 const { pathToFileURL } = require('node:url');
+const { CoreUpdates } = require('./core-update.cjs');
 const { ServerController } = require('./server-controller.cjs');
 const { validateServerConfig, readSettings, writeSettings } = require('./settings.cjs');
 
@@ -30,7 +31,21 @@ async function start() {
   catch { config = defaults; }
   const dataDir = process.env.DATA_DIR || path.join(app.getPath('userData'), 'world');
   fs.mkdirSync(dataDir, { recursive: true });
-  controller = new ServerController({ entry: path.join(__dirname, '../server/index.js'), dataDir, config });
+  const updates = new CoreUpdates(path.join(app.getPath('userData'), 'code-updates'), path.join(__dirname, '../server/index.js'), require('../package.json').version);
+  controller = new ServerController({ entry: updates.entry(), dataDir, config });
+  const originalSnapshot = controller.snapshot.bind(controller);
+  controller.snapshot = () => ({ ...originalSnapshot(), ...updates.info() });
+  handle('server:install-update', async () => {
+    if (controller.child) throw new Error('请先停止世界 / Stop the world first');
+    const result = await dialog.showOpenDialog(win, { title: '安装官方代码更新 / Install official code update', properties: ['openFile'], filters: [{ name: 'Squarelands update', extensions: ['gz'] }] });
+    if (result.canceled) return null;
+    updates.install(result.filePaths[0]); controller.entry = updates.entry();
+    return controller.snapshot();
+  });
+  handle('server:rollback-update', () => {
+    if (controller.child) throw new Error('请先停止世界 / Stop the world first');
+    updates.rollback(); controller.entry = updates.entry(); return controller.snapshot();
+  });
   controller.on('change', () => { if (win && !win.isDestroyed()) win.webContents.send('server:changed', controller.snapshot()); });
   handle('server:state', () => controller.snapshot());
   handle('server:start', async value => {

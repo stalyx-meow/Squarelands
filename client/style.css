@@ -4,17 +4,20 @@
 
 .language-toggle{position:absolute;right:5%;top:38px;z-index:2;border:1px solid var(--line);border-radius:3px;padding:7px 12px;color:var(--accent)}
 
-/* All inventory stays visible: a compact grid, never a horizontal carousel. */
-.resourcebar{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));height:auto;padding:10px 18px;gap:6px;overflow:visible;align-items:stretch}
-.resource{display:flex;align-items:center;min-width:0;min-height:47px;padding:6px 9px!important;gap:7px;border:1px solid var(--line);border-radius:4px;background:#18262b}
-.resource:first-child{background:#282d27;border-color:#655b3e}.resource:last-child{border-right:1px solid var(--line)}
-.resource-icon{display:block;font-size:18px;flex:0 0 18px;text-align:center}.resource-content{min-width:0;flex:1}
-.resource small{font-size:10px;line-height:1.15;min-height:23px;margin-bottom:2px;white-space:normal;overflow-wrap:anywhere;display:flex;align-items:center}
-.resource-values{display:flex;align-items:baseline;justify-content:space-between;gap:3px;min-width:0}
-.resource b{font-size:14px;letter-spacing:0;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
-.resource .rate{display:inline;font-size:9px;margin:0;flex-shrink:0;font-variant-numeric:tabular-nums}
-.resource-empty small{color:#c5a28e}.resource-falling{border-bottom-color:#875f53}
-.workspace{min-height:calc(100vh - 210px)}
-@media(max-width:1250px){.resourcebar{grid-template-columns:repeat(8,minmax(0,1fr));padding:8px 14px}}
-@media(max-width:950px){.resourcebar{grid-template-columns:repeat(6,minmax(0,1fr));gap:5px}.resource{min-height:43px}}
-@media(max-width:650px){.resourcebar{grid-template-columns:repeat(4,minmax(0,1fr));padding:7px}.resource{padding:5px 6px!important;gap:4px;min-height:43px}.resource-icon{font-size:15px;flex-basis:14px}.resource b{font-size:12px}.resource small{font-size:9px}.resource .rate{font-size:8px}}
+/* The map keeps its space; detailed inventories live on their own page. */
+.city-status-bar{display:flex;align-items:center;gap:24px;padding:10px 24px;border-bottom:1px solid var(--line);background:#142025;min-height:58px;flex-wrap:wrap}
+.city-status-name{display:flex;align-items:center;gap:12px;min-width:0}.city-status-name strong{font-weight:500;overflow-wrap:anywhere}
+.city-status-funds{display:flex;align-items:baseline;gap:10px;margin-left:auto;min-width:0}.city-status-funds>span{color:var(--accent);font-size:20px}.city-status-funds small{color:var(--muted)}
+.city-status-funds b{color:var(--accent);font-size:17px;font-weight:500;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.inventory-open{white-space:nowrap}
+.warehouse-overview{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap}.warehouse-overview h2{font-size:24px;font-weight:500;margin:10px 0;overflow-wrap:anywhere}.warehouse-overview p,.warehouse-footer p{color:var(--muted);line-height:1.8;font-size:12px}
+.warehouse-wallet{display:grid;gap:5px;min-width:0}.warehouse-wallet small{color:var(--muted)}.warehouse-wallet b{color:var(--accent);font-size:26px;font-weight:500;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.warehouse-capacity{padding:13px 0;margin:18px 0;color:var(--muted);border-block:1px solid var(--line);font-size:12px}.warehouse-capacity b{color:var(--text);margin:0 12px}.warehouse-capacity span{display:inline-block}
+.warehouse-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:18px;align-items:start}.warehouse-group{background:var(--panel);border:1px solid var(--line);border-radius:5px;min-width:0}
+.warehouse-group-heading{display:flex;justify-content:space-between;align-items:center;padding:17px 18px;border-bottom:1px solid var(--line)}.warehouse-group-heading h3{font-size:14px;font-weight:500}.warehouse-group-heading>span{color:var(--muted);font-size:11px}
+.warehouse-row{display:grid;grid-template-columns:minmax(96px,1.25fr) minmax(0,1fr) minmax(70px,.7fr);align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid #253439;font-size:12px;min-width:0}.warehouse-row:last-child{border-bottom:0}.warehouse-table-heading{color:var(--muted);font-size:10px;padding-block:11px;background:#122026}.warehouse-table-heading>span:not(:first-child){text-align:right}
+.warehouse-item{display:flex;align-items:center;gap:9px;min-width:0;overflow-wrap:anywhere}.warehouse-item>span:first-child{font-size:19px;flex:0 0 20px;text-align:center}.warehouse-amount{font-weight:500;font-size:14px;text-align:right;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.warehouse-rate{color:var(--green);font-variant-numeric:tabular-nums;font-size:11px;text-align:right;overflow-wrap:anywhere}.warehouse-rate.negative{color:var(--red)}.warehouse-empty .warehouse-amount{color:var(--muted)}.warehouse-footer{margin-top:24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.workspace{min-height:calc(100vh - 158px)}
+@media(max-width:700px){.city-status-bar{padding:9px 12px;gap:10px 16px}.city-status-name{flex:1 1 100%}.city-status-funds{margin-left:0}.inventory-open{margin-left:auto}.city-status-funds b{font-size:15px}.warehouse-row{padding:13px 12px;gap:8px}.warehouse-wallet b{font-size:23px}}
+
+.inventory-view>.inspector{display:none}.inventory-view>.main-content{grid-column:2/-1}

@@ -15,6 +15,19 @@
 
 ![游戏实测画面](docs/preview.png)
 
+## 轻量更新（1.2.1 起）
+
+普通玩法、界面和数值逻辑更新只发布一个约 115 KiB 的 `Squarelands-Update-版本.squarelands-update.gz`，Windows、Linux、macOS 通用。客户端从服务端加载游戏页面，重新连接即可获取新版，无需重复下载客户端。
+
+1. **首次准备**：旧服务端 1.2.0 及以前没有安装入口，需要一次性换用 1.2.1 或更高版本的服务端完整应用；原存档目录保持不变。已有 1.2.0 客户端可以继续使用。
+2. 在服务端控制台“安全停止”，并点击“备份存档”。
+3. 下载官方 Release 的通用更新包，在“代码更新”点击“安装更新”，选择原文件（无需解压）。
+4. 启动世界，客户端重新连接。控制台显示当前 Core 版本。
+
+更新包只替换游戏代码，不包含 Electron 运行时，也不会覆盖世界、账号和控制台设置。安装前检查格式、路径和逐文件 SHA-256；校验不能证明发布者身份，请仅使用可信来源。出现问题可停止世界后“回退代码”；回退不恢复存档。本更新格式仅适用于存档结构 2、运行时接口 1，未来不兼容迁移需要新的升级方案。
+
+只有 Electron、安全补丁或原生启动器变更时，才重新发布受影响的完整应用。完整应用保留作首次安装入口；日常更新不再上传 8 份大包。源码标签自动发布小包，完整桌面构建在 GitHub Actions 手动触发。
+
 ## 你可以做什么
 
 - **开拓城邦**：探索初始 40 × 32 的随机地图，靠近边缘自动扩图；升级增加领地容量，地块由玩家手动解锁。
@@ -26,16 +39,16 @@
 
 ## 下载与选择版本
 
-> 当前版本为 **1.2.0**。下载时请核对版本号；旧版 1.1 不含本次新增玩法。旧截图展示 1.1 界面。
+> 当前服务端版本为 **1.2.1**（客户端沿用 1.2.0）。下载时请核对版本号；旧版 1.1 不含本次新增玩法。旧截图展示 1.1 界面。
 
 在 [Releases](https://github.com/stalyx-meow/Squarelands/releases) 下载对应系统与角色的应用包。**所有包均内置运行时，不需要安装 Node.js、npm 或数据库。**
 
 | 你的设备 | 客户端：供玩家游玩 | 服务端：供服主运行世界 |
 | --- | --- | --- |
-| Windows x64 | `Squarelands-Client-1.2.0-win-x64.zip` | `Squarelands-Server-1.2.0-win-x64.zip` |
-| Linux x64 | `Squarelands-Client-1.2.0-linux-x64.tar.gz` | `Squarelands-Server-1.2.0-linux-x64.tar.gz` |
-| macOS Apple 芯片 | `Squarelands-Client-1.2.0-mac-arm64.zip` | `Squarelands-Server-1.2.0-mac-arm64.zip` |
-| macOS Intel | `Squarelands-Client-1.2.0-mac-x64.zip` | `Squarelands-Server-1.2.0-mac-x64.zip` |
+| Windows x64 | `Squarelands-Client-1.2.0-win-x64.zip` | `Squarelands-Server-1.2.1-win-x64.zip` |
+| Linux x64 | `Squarelands-Client-1.2.0-linux-x64.tar.gz` | `Squarelands-Server-1.2.1-linux-x64.tar.gz` |
+| macOS Apple 芯片 | `Squarelands-Client-1.2.0-mac-arm64.zip` | `Squarelands-Server-1.2.1-mac-arm64.zip` |
+| macOS Intel | `Squarelands-Client-1.2.0-mac-x64.zip` | `Squarelands-Server-1.2.1-mac-x64.zip` |
 
 当前发行形式是**解压即用的便携应用**，不是安装向导。Windows、Linux 包请保留整个解压目录；macOS 将 `.app` 拖入“应用程序”即可。Linux 服务端图形应用同样需要桌面环境，无桌面的服务器可使用[命令行运行方式](DEVELOPMENT.md#无图形界面的服务端)。
 
@@ -95,7 +108,7 @@
 一级城地块有限；可以先用商城补足民生，升级后手动解锁相邻地块，再扩建工厂。粮田与菜田可免费转换。
 
 - 优先在河流或湖泊附近定居；水厂必须与水源四方向相邻。
-- 顶栏自动换行展示全部库存及每周期净变化。默认每 30 秒一周期、每 2 秒结算，服主可以调整。
+- 顶部保留资金摘要，独立“仓储”页分类展示全部库存及每周期净变化。默认每 30 秒一周期、每 2 秒结算，服主可以调整。
 - 公务、生产、施工和运输都占用人力。缺工、缺电或缺原料会影响产出。
 - 每种物资初始仓储上限为 600，仓库可扩容；资金不限容量。
 - 必需品短缺会降低舒适度；舒适度低于 40 时人口流失，达到 60 且有空房时人口增长。

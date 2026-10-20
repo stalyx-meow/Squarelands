@@ -1,4 +1,4 @@
-import { inventoryHTML } from '/client/inventory.js';
+import { inventorySummaryHTML, warehouseHTML } from '/client/inventory.js';
 import '/shared/i18n.js';
 import { SessionRequests } from '/client/session.js';
 import { installFeatures } from '/client/features.js';
@@ -36,17 +36,19 @@ function render(){
   if(state.user.role==='root'&&!$('#admin-nav'))$('#nav').insertAdjacentHTML('beforeend','<button id="admin-nav" data-tab="admin">⚙ 管理</button>');
   if(state.user.role!=='root')$('#admin-nav')?.remove();
   $$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));$$('.tab-panel').forEach(p=>p.hidden=p.id!==`${tab}-panel`);
-  const titles={messages:['COMMUNITY','城邦之间，传递消息','广播 · 私信'],world:['THE LIVING WORLD','山河之间，皆有可能','探索 · 建设 · 生长'],cities:['BUILD YOUR CIVILIZATION','让城邦，生生不息','人口 · 生产 · 民生'],market:['THE GLOBAL EXCHANGE','往来之间，共生繁荣','现货 · 产能 · 商城'],logistics:['ROADS TO PROSPERITY','让每一份物资，抵达所需','运输 · 路线 · 关税'],admin:['WORLD ADMINISTRATION','世界管理中心','账号 · 资源 · 世界状态']};
-  const title=titles[tab];$('#page-kicker').textContent=title[0];$('#page-title').innerHTML=`${title[1]}<span>${title[2]}</span>`;$('#page-actions').hidden=tab!=='world';
-  $('#resources').innerHTML=inventoryHTML(c,locale.language());
+  const titles={inventory:['CITY INVENTORY',locale.language()==='en'?'Your city’s resources':'每一份物资，都心中有数',locale.language()==='en'?'Stock · Production · Reserves':'库存 · 产出 · 储备'],messages:['COMMUNITY','城邦之间，传递消息','广播 · 私信'],world:['THE LIVING WORLD','山河之间，皆有可能','探索 · 建设 · 生长'],cities:['BUILD YOUR CIVILIZATION','让城邦，生生不息','人口 · 生产 · 民生'],market:['THE GLOBAL EXCHANGE','往来之间，共生繁荣','现货 · 产能 · 商城'],logistics:['ROADS TO PROSPERITY','让每一份物资，抵达所需','运输 · 路线 · 关税'],admin:['WORLD ADMINISTRATION','世界管理中心','账号 · 资源 · 世界状态']};
+  $('.workspace').classList.toggle('inventory-view',tab==='inventory');const title=titles[tab];$('#page-kicker').textContent=title[0];$('#page-title').innerHTML=`${title[1]}<span>${title[2]}</span>`;$('#page-actions').hidden=tab!=='world';
+  $('#resources').innerHTML=inventorySummaryHTML(c,locale.language());
   $('#city-count').textContent=String(ownCities().length).padStart(2,'0');$('#city-list').innerHTML=ownCities().map(c=>`<button class="city-card ${c.id===cityId?'active':''}" data-city="${c.id}"><strong>▥ ${escape(c.name)}</strong><span>${c.readyAt?'建造中':`人口 ${number(c.population)}`} · ${c.x}, ${c.y}</span><span class="city-level">LV.${c.level}</span></button>`).join('')||'<p class="muted">还没有城池。<br>选一片土地，开始你的故事。</p>';
   $('#world-summary').innerHTML=`<div class="summary-row">世界人口<b>${number(state.cities.reduce((s,c)=>s+c.population,0))}</b></div><div class="summary-row">活跃城邦<b>${state.cities.length}</b></div><div class="summary-row">贸易挂单<b>${state.offers.length}</b></div>`;
   $('#world-seed').textContent=`世界种子 ${state.world.seed}`;$('.sidebar-bottom .live-label').innerHTML=`<span class="status-dot"></span> ${state.paused?'世界已暂停':'世界正在运转'}`;
   $('#footer-status').textContent=state.paused?'管理员已暂停模拟与普通玩家操作':`已连接至世界服务器 · ${new Date(state.serverTime).toLocaleTimeString('zh-CN')}`;
   $('#events').innerHTML=state.events.slice(0,6).map(e=>`<div class="event">${escape(e.message)}<time>${new Date(e.time).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}</time></div>`).join('')||'<p class="muted">新的故事，即将在此发生。</p>';
   $('#world-bottom').innerHTML=`<article class="info-card"><h3>◈ ${c?escape(c.name)+' · 城邦概况':'你的第一座城，正在等待'}</h3><div class="value">${c?number(c.population):'01'}<small>${c?'位居民 / 舒适度 '+number(c.comfort)+'%':'选择地块 · 建立城邦'}</small></div><p>${c?`劳动力 ${c.workers} 人 · 岗位需求 ${c.workerDemand} 人<br>每种物资仓储上限 ${c.capacity}，领地 ${c.territoryUsed}/${c.territoryCapacity} 格。`:'寻找平原，靠近河流。<br>充足的水源与可建设土地，是繁荣的起点。'}</p><button data-go="${c?'cities':'found'}">${c?'管理我的城市':'开启第一章'} ↗</button></article><article class="info-card"><h3>⇄ 全球市场 · 流动的繁荣</h3><div class="value">${state.offers.length}<small>份在售订单</small></div><p>连接其他城邦，交换彼此的富余。<br>官方商城每 5 分钟补货，交易即时交付。</p><button data-go="market">前往贸易中心 ↗</button></article>`;
-  if(tab==='cities'&&!(document.activeElement?.matches('input,select,textarea')&&document.activeElement.closest('#cities-panel form')))renderCities();if(tab==='market')renderMarket();if(tab==='logistics')renderLogistics();if(tab==='messages')features.messages();renderInspector();drawMap();
+  if(tab==='cities'&&!(document.activeElement?.matches('input,select,textarea')&&document.activeElement.closest('#cities-panel form')))renderCities();if(tab==='market')renderMarket();if(tab==='inventory')renderInventory();if(tab==='logistics')renderLogistics();if(tab==='messages')features.messages();renderInspector();drawMap();
 }
+$('#resources').onclick=e=>{if(e.target.closest('[data-open-inventory]'))showTab('inventory');};
+function renderInventory(){const panel=$('#inventory-panel');panel.innerHTML=warehouseHTML(current(),locale.language());panel.onclick=e=>{if(e.target.closest('[data-inventory-world]'))showTab('world');if(e.target.closest('[data-inventory-manage]')){showTab('cities');$('#threshold-form')?.scrollIntoView({behavior:'smooth',block:'center'});}};}
 $('#city-list').onclick=e=>{const b=e.target.closest('[data-city]');if(b){cityId=b.dataset.city;const c=current();selected={x:c.x,y:c.y};render();centerCity();}};
 $('#world-bottom').onclick=e=>{const b=e.target.closest('[data-go]');if(b){if(b.dataset.go==='found')startFound();else showTab(b.dataset.go);}};
 function startFound(){founding=true;showTab('world');$('#found-banner').hidden=false;$('#map-hint').textContent='推荐靠近水源的平原 · 黄色边界内为现有领地';toast('点击一块无主陆地，查看建城信息');}
