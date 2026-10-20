@@ -1,6 +1,12 @@
 name: Build desktop apps
 on:
   workflow_dispatch:
+    inputs:
+      role:
+        description: Application to rebuild (ordinary code releases use the lightweight workflow)
+        type: choice
+        default: server
+        options: [server, client, all]
 permissions:
   contents: read
 jobs:
@@ -9,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        role: [client, server]
+        role: ${{ fromJSON(inputs.role == 'all' && '["client","server"]' || format('["{0}"]', inputs.role || 'server')) }}
         platform:
           - { os: macos-latest, target: mac, arch: arm64 }
           - { os: macos-15-intel, target: mac, arch: x64 }
