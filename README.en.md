@@ -7,7 +7,7 @@ A multiplayer city-building and trading game with a standalone Electron client a
 ## What is new
 
 - Automatic intercity supply, including funds, using real freight costs and transport workers.
-- Full resource inventories, raw ores, smelters/refineries, fuel and expanded food/clothing chains.
+- Full resource inventories in a responsive grid, raw ores, smelters/refineries, fuel and expanded food/clothing chains.
 - Manual territory claims; city upgrades increase capacity. Maps expand near claimed borders.
 - Per-player transit policies and automatic sale thresholds per resource.
 - City sales, purchases, border walls and infiltration with a visible success probability.

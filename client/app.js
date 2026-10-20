@@ -1,3 +1,4 @@
+import { inventoryHTML } from '/client/inventory.js';
 import '/shared/i18n.js';
 import { SessionRequests } from '/client/session.js';
 import { installFeatures } from '/client/features.js';
@@ -37,7 +38,7 @@ function render(){
   $$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));$$('.tab-panel').forEach(p=>p.hidden=p.id!==`${tab}-panel`);
   const titles={messages:['COMMUNITY','城邦之间，传递消息','广播 · 私信'],world:['THE LIVING WORLD','山河之间，皆有可能','探索 · 建设 · 生长'],cities:['BUILD YOUR CIVILIZATION','让城邦，生生不息','人口 · 生产 · 民生'],market:['THE GLOBAL EXCHANGE','往来之间，共生繁荣','现货 · 产能 · 商城'],logistics:['ROADS TO PROSPERITY','让每一份物资，抵达所需','运输 · 路线 · 关税'],admin:['WORLD ADMINISTRATION','世界管理中心','账号 · 资源 · 世界状态']};
   const title=titles[tab];$('#page-kicker').textContent=title[0];$('#page-title').innerHTML=`${title[1]}<span>${title[2]}</span>`;$('#page-actions').hidden=tab!=='world';
-  const important=Object.keys(RESOURCES);$('#resources').innerHTML=important.map(k=>{const r=c?.rates[k]||0;return `<div class="resource"><span class="resource-icon" style="color:${RESOURCES[k][2]}">${RESOURCES[k][1]}</span><div><small>${RESOURCES[k][0]}</small><b>${number(c?.stock[k])}</b><span class="rate ${r<0?'negative':''}">${r>=0?'+':''}${r.toFixed(1)}</span></div></div>`;}).join('');
+  $('#resources').innerHTML=inventoryHTML(c,locale.language());
   $('#city-count').textContent=String(ownCities().length).padStart(2,'0');$('#city-list').innerHTML=ownCities().map(c=>`<button class="city-card ${c.id===cityId?'active':''}" data-city="${c.id}"><strong>▥ ${escape(c.name)}</strong><span>${c.readyAt?'建造中':`人口 ${number(c.population)}`} · ${c.x}, ${c.y}</span><span class="city-level">LV.${c.level}</span></button>`).join('')||'<p class="muted">还没有城池。<br>选一片土地，开始你的故事。</p>';
   $('#world-summary').innerHTML=`<div class="summary-row">世界人口<b>${number(state.cities.reduce((s,c)=>s+c.population,0))}</b></div><div class="summary-row">活跃城邦<b>${state.cities.length}</b></div><div class="summary-row">贸易挂单<b>${state.offers.length}</b></div>`;
   $('#world-seed').textContent=`世界种子 ${state.world.seed}`;$('.sidebar-bottom .live-label').innerHTML=`<span class="status-dot"></span> ${state.paused?'世界已暂停':'世界正在运转'}`;
