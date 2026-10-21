@@ -12,7 +12,7 @@
 | `electron/ui/` | 两种桌面应用的本地页面；不依赖外部网络资源 |
 | `server/index.js` | HTTP、scrypt 登录、Cookie 会话、SQLite、root 管理、健康检查 |
 | `server/game.js` | 权威模拟、建设、生产、人口、合约、运输、寻路与领地 |
-| `server/features.js` | 自动补给、阈值出售、转让、渗透与消息 |
+| `server/features.js` | 统一补货、阈值出售、城市收购与消息 |
 | `server/settings.js` | 421 项数值的默认值、范围与关联校验 |
 | `server/state.js` | 存档版本、迁移与库存校验 |
 | `server/routing.js` | 最小堆寻路与玩家通行覆盖 |
@@ -177,3 +177,7 @@ npm test
 ## 轻量代码包
 
 `npm run pack:update` 生成 `dist/update/*.squarelands-update.gz` 与 SHA256SUMS。包包含 server/client/shared，使用 gzip 压缩的 JSON 清单、逐文件 SHA-256，最多 32 MiB 解压数据；不包含存档、依赖和 Electron。服务端安装到 userData/code-updates，原子切换 active.json；停止服务端后安装/回退。修改原生控制台或运行时仍须构建完整服务端。标签工作流仅发布小包；完整桌面工作流手动运行。
+
+## 1.3 扩展
+
+`server/politics.js` 管理联盟权限，`shared/politics.js` 提供政策与成交优惠；`server/infrastructure.js` 计算铁路/航空候选路线，`server/territory.js` 校验地块转让与放弃，`server/admin-tools.js` 校验地块和单体设施编辑。账号编辑与世界保存共用 SQLite 事务。`featureVersion: 3` 标记扩展存档，首次加载更早版本自动执行参数化 VACUUM INTO，保留完整 SQLite 迁移前备份。回退旧代码需恢复升级前数据库。

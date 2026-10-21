@@ -2,15 +2,17 @@
 
 [中文](readme.md) · [Gameplay and balance](GAMEPLAY.md) · [Development](DEVELOPMENT.md) · [Downloads](https://github.com/stalyx-meow/Squarelands/releases)
 
-A multiplayer city-building and trading game with a standalone Electron client and server. Players enter the server IP or domain to join a persistent shared world. The current game code version is **1.2.2** (server launcher 1.2.1). Check the version when downloading; 1.1.0 packages do not include these new features.
+A multiplayer city-building and trading game with a standalone Electron client and server. Players enter the server IP or domain to join a persistent shared world. The current game code version is **1.3.0** (server launcher 1.2.1). Check the version when downloading; 1.1.0 packages do not include these new features.
 
-## 1.2.2 update
+## 1.3 update
 
-City management adds reserved builders (default 4), per-resource restock thresholds and periodic transfers between owned cities. Funds are supported; dispatches use real freight, non-reserved workers and destination capacity including inbound cargo. Building cards and tile details now show the current level’s output, inputs and every bonus. Existing saves receive defaults without losing progress. Install the universal code bundle in the 1.2.1 server launcher; clients are unchanged.
+Unified restocking defaults to 5% of capacity and surplus sales retain 95%. Builder/freight pools reserve four workers each. Stations use a separate railway layer; airports enable fast air freight with fuel at both endpoints. Alliances support administrators, internal discounts/tariffs, external embargoes and alliance chat. Customize territory colors, transfer bordering owned tiles or abandon cleared tiles. Infiltration is removed. Root can edit accounts/passwords, tile ownership/terrain and individual building attributes. Shortage shortcuts, per-version release notes and mobile layouts are included. Shipments are visible only to participants, including in root's logistics list.
+
+Stop and back up before installing the universal 1.3 code bundle into the 1.2.1 server launcher. Existing clients reconnect or refresh. Reverting pre-1.3 code requires restoring the pre-update save as well.
 
 ## Lightweight updates (1.2.1+)
 
-Routine releases ship one approximately 122 KiB `.squarelands-update.gz` code bundle for Windows, Linux and macOS. Clients load gameplay from the server; reconnect to update the interface. Existing 1.2.0 clients remain compatible.
+Routine releases ship one roughly a hundred KiB `.squarelands-update.gz` code bundle for Windows, Linux and macOS. Clients load gameplay from the server; reconnect to update the interface. Existing 1.2.0 clients remain compatible.
 
 Servers older than 1.2.1 need a **one-time full server app upgrade** to gain the installer. Keep the existing data directory. Stop and back up the world, choose **Install update** in the console, select the official bundle without extracting it, then start the world. The console displays the Core version. Code updates preserve accounts, saves and console settings. Rollback restores code only, not save data. Only trusted bundles should be installed; hashes detect corruption, not publisher identity. This format requires save schema 2 and runtime API 1.
 
@@ -22,10 +24,10 @@ Full applications are rebuilt only for initial installation or native launcher/E
 - Full categorized resource inventories on a dedicated Storage page, raw ores, smelters/refineries, fuel and expanded food/clothing chains.
 - Manual territory claims; city upgrades increase capacity. Maps expand near claimed borders.
 - Per-player transit policies and automatic sale thresholds per resource.
-- City sales, purchases, border walls and infiltration with a visible success probability.
+- City sales, bordering-tile transfers, railways, airports and alliances.
 - Broadcasts and private messages.
 - Chinese and English UI and an in-game handbook populated from current server settings.
-- Root administration with 423 editable numeric fields, validation, atomic persistence and reset to defaults.
+- Root administration with 434 editable numeric fields, validation, atomic persistence and reset to defaults.
 
 ## Play
 
@@ -42,7 +44,7 @@ Bare hosts default to HTTP port 3210. Explicit schemes use their normal default 
 
 ## Administration
 
-Sign in as root inside the game and open **Admin → World parameters**. Categories and search cover prices, inventories, buildings, terrain, workforce, consumption, transport, trade, map expansion and infiltration. Changes are saved with the world. Starting stock applies to new cities; initial map dimensions apply to newly reset worlds. Existing payments, collateral, penalties and dispatched shipments retain their locked values. Lowering capacity does not delete existing stock.
+Sign in as root inside the game and open **Admin → World parameters**. Categories and search cover prices, inventories, buildings, terrain, workforce, consumption, transport, trade, map expansion, automation and transport infrastructure. Changes are saved with the world. Starting stock applies to new cities; initial map dimensions apply to newly reset worlds. Existing payments, collateral, penalties and dispatched shipments retain their locked values. Lowering capacity does not delete existing stock.
 
 The server console starts/stops the world, shows connection addresses, opens the save folder and makes backups after shutdown. Stop and back up before upgrading. Never run two servers against the same database. Schema v2 preserves existing terrain, inventories and contract ledgers and saves the original legacy JSON before migration. Corrupted balances cause an explicit startup error rather than silent resets.
 

@@ -1,10 +1,16 @@
+import {VERSION} from '../shared/release.js';
 import { randomUUID } from 'node:crypto';
 import { RESOURCES } from '../shared/config.js';
 import { makeWorld, expandWorld } from './world.js';
 import { migrateState, restoreState } from './state.js';
 import { configured } from './settings.js';
 import { payment, priceCents, orderPayment } from '../shared/money.js';
-import { featureAction, requestSupply, tickFeatures, territoryCapacity, borderStats } from './features.js';
+import { featureAction, requestSupply, tickFeatures, territoryCapacity, supplyLimit, saleLimit } from './features.js';
+import {buildingDefinition} from '../shared/building-stats.js';
+import {territoryAction} from './territory.js';
+import {politicsAction} from './politics.js';
+import {railAction,fastRoutes} from './infrastructure.js';
+import {allianceOf,alliancePrice} from '../shared/politics.js';
 import { findRoute } from './routing.js';
 const id = () => randomUUID();
 const fail = message => { throw new Error(message); };
@@ -26,16 +32,18 @@ export class Game {
     for(const [k,v] of Object.entries(cost))c.stock[k]=round(c.stock[k]-v);
   }
   credit(c,resource,amount){if(!Object.hasOwn(RESOURCES,resource)||!Number.isFinite(amount)||amount<0||!Number.isFinite(c.stock[resource]))fail('资源或金额无效');const cap=resource==='money'?Infinity:this.capacity(c);const added=Math.max(0,Math.min(amount,cap-c.stock[resource]));c.stock[resource]=round(c.stock[resource]+added);return added;}
-  capacity(c) { return this.config.rules.baseStorage+c.buildings.filter(b=>!b.readyAt&&b.type==='warehouse').reduce((s,b)=>s+this.config.buildings.warehouse.storage*b.level,0); }
+  definition(b) { return buildingDefinition(this.config.buildings[b.type],b); }
+  capacity(c) { return this.config.rules.baseStorage+c.buildings.filter(b=>!b.readyAt&&b.type==='warehouse').reduce((s,b)=>s+this.definition(b).storage*b.level,0); }
   area(x,y,level) { const a=[]; for(let yy=y-level;yy<=y+level;yy++) for(let xx=x-level;xx<=x+level;xx++) if(this.inBounds(xx,yy)) a.push(`${xx},${yy}`); return a; }
   claim(c) { for(const key of this.area(c.x,c.y,c.level)) if(!this.state.claims[key]) this.state.claims[key]=c.id; }
   workers(c) { return Math.floor(c.population*this.config.rules.laborRatio); }
-  demand(c) { return this.config.rules.civilWorkers*c.level + c.buildings.reduce((s,b)=>s+(b.readyAt?this.config.rules.constructionWorkers:this.config.buildings[b.type].workers*b.level),0); }
+  demand(c) { return this.config.rules.civilWorkers*c.level + c.buildings.reduce((s,b)=>s+(b.readyAt?this.config.rules.constructionWorkers:this.definition(b).workers*b.level),0); }
   constructionBusy(c) { return (c.buildings.filter(b=>b.readyAt).length+(c.upgradeAt?1:0))*this.config.rules.constructionWorkers; }
-  operatingDemand(c) { return this.config.rules.civilWorkers*c.level+c.buildings.filter(b=>!b.readyAt).reduce((n,b)=>n+this.config.buildings[b.type].workers*b.level,0); }
-  operatingWorkers(c) { return Math.max(0,this.workers(c)-(c.transportWorkers||0)-Math.max(c.constructionReserve??4,this.constructionBusy(c))); }
+  operatingDemand(c) { return this.config.rules.civilWorkers*c.level+c.buildings.filter(b=>!b.readyAt).reduce((n,b)=>n+this.definition(b).workers*b.level,0); }
+  operatingWorkers(c) { return Math.max(0,this.workers(c)-Math.max(c.transportReserve??4,c.transportWorkers||0)-Math.max(c.constructionReserve??4,this.constructionBusy(c))); }
+  transportAvailable(c) { return Math.max(0,this.workers(c)-Math.max(c.constructionReserve??4,this.constructionBusy(c))-(c.transportWorkers||0)-Math.min(this.operatingDemand(c),this.operatingWorkers(c))); }
   available(c) { return this.operatingWorkers(c)-this.operatingDemand(c); }
-  constructionAvailable(c) { return Math.max(0,this.workers(c)-(c.transportWorkers||0)-this.constructionBusy(c)-Math.min(this.operatingDemand(c),this.operatingWorkers(c))); }
+  constructionAvailable(c) { return Math.max(0,this.workers(c)-Math.max(c.transportReserve??4,c.transportWorkers||0)-this.constructionBusy(c)-Math.min(this.operatingDemand(c),this.operatingWorkers(c))); }
   nearWater(x,y) { return [[x+1,y],[x-1,y],[x,y+1],[x,y-1]].some(([xx,yy])=>this.inBounds(xx,yy)&&['river','lake'].includes(this.tile(xx,yy)?.terrain)); }
   found(user, {x,y,name,sourceCityId}) {
     if(!Number.isInteger(x)||!Number.isInteger(y)||!this.inBounds(x,y)) fail('请选择有效地块');
@@ -47,7 +55,7 @@ export class Game {
     if(owned.length) { const source=this.city(user,sourceCityId); this.ready(source); if(this.available(source)<this.config.rules.foundingWorkers) fail('建立新城所需空闲工人不足'); this.pay(source,this.config.rules.foundingCost); source.transportWorkers=(source.transportWorkers||0)+this.config.rules.foundingWorkers; }
     const c={id:id(),owner:user.id,ownerName:user.username,name:String(name||'新城').trim().slice(0,18)||'新城',x,y,level:1,population:this.config.rules.startPopulation,comfort:65,education:0,stock:{...this.config.startStock},buildings:[],policy:{embargo:false,tariff:0},readyAt:Date.now()+this.config.rules.foundingSeconds*1000,rates:{},efficiency:1};
     if(owned.length) { c.stock={...this.config.colonyStock};c.foundingSource=sourceCityId;c.foundingWorkers=this.config.rules.foundingWorkers; }
-    c.constructionReserve=this.config.rules.defaultConstructionReserve;c.supplyThresholds={};c.transferRules=[];c.thresholds={};c.autoSupply=true;c.policy.players={};this.state.cities.push(c); this.claim(c);expandWorld(this.state.world,this.area(c.x,c.y,c.level).map(key=>{const [x,y]=key.split(',').map(Number);return {x,y};}),this.config.territory); this.log(`${user.username} 正在建立「${c.name}」`); return c.id;
+    c.transportReserve=this.config.rules.defaultTransportReserve;c.constructionReserve=this.config.rules.defaultConstructionReserve;c.supplyThresholds={};c.transferRules=[];c.thresholds={};c.autoSupply=true;c.policy.players={};this.state.cities.push(c); this.claim(c);expandWorld(this.state.world,this.area(c.x,c.y,c.level).map(key=>{const [x,y]=key.split(',').map(Number);return {x,y};}),this.config.territory); this.log(`${user.username} 正在建立「${c.name}」`); return c.id;
   }
   build(user, {cityId,type,x,y}) {
     const c=this.city(user,cityId); this.ready(c); const def=Object.hasOwn(this.config.buildings,type)?this.config.buildings[type]:null; if(!def) fail('未知建筑');
@@ -73,34 +81,50 @@ export class Game {
   }
   demolish(user,{cityId,buildingId}) { const c=this.city(user,cityId); const b=c.buildings.find(b=>b.id===buildingId); if(!b) fail('建筑不存在'); for(const [k,v] of Object.entries(this.buildingCost(b.type,b.level))) this.credit(c,k,v*this.config.economy.demolishRefund); c.buildings=c.buildings.filter(v=>v.id!==b.id); this.log(`${c.name}：拆除${this.config.buildings[b.type].name}，返还 30% 材料`,user.id); }
   route(from,to){return findRoute(this,from,to);}
-  transport(from,to,resource,amount,payer,now=Date.now()) {
-    if(from.id===to.id) fail('请选择另一座城市'); this.ready(from);this.ready(to);
-    const route=this.route(from,to), workers=Math.max(1,Math.ceil(amount/this.config.economy.unitsPerWorker));
-    if(this.available(payer)<workers) fail(`运输需要 ${workers} 名空闲工人`);
-    const tariffs=Object.entries(route.tolls).map(([cityId,rate])=>({cityId,fee:Math.ceil(amount*(this.config.prices[resource]??1)*rate/100)}));
-    const fee=Math.ceil(route.distance*this.config.economy.freightDistance+amount*this.config.economy.freightAmount)+tariffs.reduce((s,t)=>s+t.fee,0);
-    this.pay(payer,{money:fee}); for(const t of tariffs) {const c=this.state.cities.find(c=>c.id===t.cityId); if(c)this.credit(c,'money',t.fee);}
+  transportQuote(from,to,resource,amount,budget=Infinity){
+    if(from.owner!==to.owner&&(allianceOf(this.state,from.owner)?.external[to.owner]?.embargo||allianceOf(this.state,to.owner)?.external[from.owner]?.embargo))fail('联盟政策禁止与该玩家运输或贸易');
+    const options=fastRoutes(this,from,to);try{const r=this.route(from,to);options.push({...r,mode:'road',seconds:this.config.economy.freightBaseSeconds+r.distance*this.config.economy.freightSeconds,feeMultiplier:1});}catch{if(!options.length)fail('运输路线被禁运封锁');}
+    for(const r of options)r.fee=Math.ceil((r.distance*this.config.economy.freightDistance+amount*this.config.economy.freightAmount)*r.feeMultiplier)+Object.values(r.tolls).reduce((n,rate)=>n+Math.ceil(amount*(this.config.prices[resource]??1)*rate/100),0);
+    options.sort((a,b)=>a.seconds-b.seconds);return options.find(r=>r.fee<=budget)||options[0];
+  }
+  transport(from,to,resource,amount,payer,now=Date.now(),preflightQuote=null) {
+    if(from.id===to.id)fail('请选择另一座城市');this.ready(from);this.ready(to);
+    const quote=preflightQuote||this.transportQuote(from,to,resource,amount,payer.stock.money),workers=Math.max(1,Math.ceil(amount/this.config.economy.unitsPerWorker));
+    if(this.transportAvailable(payer)<workers)fail(`运输需要 ${workers} 名可用运输工人`);
+    // Preflight fuel and the fee before any mutation (also used by scheduled dispatch).
+    if(quote.fuel&&(from.stock.fuel<quote.fuel||to.stock.fuel<quote.fuel))fail('机场燃油不足');
+    this.pay(payer,{money:quote.fee});if(quote.fuel){this.pay(from,{fuel:quote.fuel});this.pay(to,{fuel:quote.fuel});}
+    for(const [cityId,rate] of Object.entries(quote.tolls)){const c=this.state.cities.find(c=>c.id===cityId);if(c)this.credit(c,'money',Math.ceil(amount*(this.config.prices[resource]??1)*rate/100));}
     payer.transportWorkers=(payer.transportWorkers||0)+workers;
-    const shipment={id:id(),from:from.id,to:to.id,owner:payer.owner,payer:payer.id,resource,amount,workers,fee,path:route.path,departAt:now,arriveAt:now+Math.max(1,Math.ceil(this.config.economy.freightBaseSeconds+route.distance*this.config.economy.freightSeconds))*1000,status:'transit'};
-    this.state.shipments.push(shipment); return shipment;
+    const shipment={id:id(),from:from.id,to:to.id,owner:payer.owner,payer:payer.id,resource,amount,workers,fee:quote.fee,mode:quote.mode,path:quote.path,departAt:now,arriveAt:now+Math.max(1,Math.ceil(quote.seconds))*1000,status:'transit'};this.state.shipments.push(shipment);return shipment;
   }
   amount(n) { if(!Number.isFinite(n)||n<1||n>this.config.trade.maxAmount||!Number.isInteger(n)) fail('数量须为服务器范围内的正整数'); }
   action(user,action,p={}) {
     const snapshot=structuredClone(this.state);
     try{return this.coreAction(user,action,p);}catch(error){if(error.supply){const before=snapshot.cities.find(c=>c.id===error.supply.cityId),after=this.state.cities.find(c=>c.id===error.supply.cityId);if(before&&after)error.supply.cost=Object.fromEntries(Object.entries(error.supply.cost).map(([k,v])=>[k,v+Math.max(0,before.stock[k]-after.stock[k])]));}restoreState(this.state,snapshot);
-      if(error.supply&&!this.state.paused&&!this.state.pendingActions.some(a=>a.cityId===error.supply.cityId)){
+      if(error.supply&&p.shortageMode==='supply'&&!this.state.paused&&!this.state.pendingActions.some(a=>a.cityId===error.supply.cityId)){
         const c=this.city(user,error.supply.cityId);
-        if(requestSupply(this,c,error.supply.cost)){
-          this.state.pendingActions.push({id:id(),cityId:c.id,user:{id:user.id,username:user.username,role:user.role},action,params:p,createdAt:Date.now()});
+        if(requestSupply(this,c,error.supply.cost,Date.now(),true)){
+          this.state.pendingActions.push({id:id(),cityId:c.id,user:{id:user.id,username:user.username,role:user.role},action,params:p,cost:error.supply.cost,createdAt:Date.now()});
           this.log(`${c.name}：库存不足，已自动发车调配，抵达后执行操作`,user.id);return {pending:true};
         }
+      }
+      if(error.supply&&p.shortageMode==='market'){
+        try{const c=this.city(user,error.supply.cityId),cost=error.supply.cost;
+          if((cost.money||0)>c.stock.money)fail('资金不足，官方市场不能购买资金');
+          const needed=Object.entries(cost).filter(([k,v])=>k!=='money'&&v>c.stock[k]).map(([k,v])=>[k,Math.ceil(v-c.stock[k])]);
+          let total=0;for(const [k,n]of needed){if(!Object.hasOwn(this.config.prices,k)||this.state.shop.stock[k]<n||c.stock[k]+n>this.capacity(c))fail('官方市场库存或城市仓储不足');total+=payment(n,priceCents(this.config.prices[k]*this.config.economy.buyMultiplier));}
+          this.pay(c,{money:total+(cost.money||0)});this.credit(c,'money',cost.money||0);
+          for(const [k,n]of needed){this.credit(c,k,n);this.state.shop.stock[k]-=n;}
+          return this.coreAction(user,action,p);
+        }catch(marketError){restoreState(this.state,snapshot);throw marketError;}
       }
       restoreState(this.state,snapshot);throw error;
     }
   }
   coreAction(user, action, p = {}) {
     if(this.state.paused && user.role!=='root') fail('世界已暂停，请等待管理员恢复');
-    if(featureAction(this,user,action,p))return;
+    if(territoryAction(this,user,action,p)||politicsAction(this,user,action,p)||railAction(this,user,action,p)||featureAction(this,user,action,p))return;
     if(action==='found') return this.found(user,p);
     if(action==='build') return this.build(user,p);
     if(action==='upgrade') return this.upgrade(user,p);
@@ -108,18 +132,18 @@ export class Game {
     const c=this.city(user,p.cityId); this.ready(c);
     if(action==='policy') { if(!Number.isFinite(p.tariff)||p.tariff<0||p.tariff>this.config.trade.maxTariff)fail('税率超出服务器允许范围'); const policy={embargo:!!p.embargo,tariff:Math.round(p.tariff)};if(p.playerId){if(typeof p.playerId!=='string'||!p.policyPlayer)fail('目标玩家不存在');c.policy.players??={};if(p.remove)delete c.policy.players[p.playerId];else c.policy.players[p.playerId]=policy;}else Object.assign(c.policy,policy);return; }
     if(action==='shop') { this.amount(p.amount); if(typeof p.resource!=='string'||!Object.hasOwn(this.config.prices,p.resource))fail('未知物资'); if(!['buy','sell'].includes(p.side))fail('无效交易方向'); const price=this.config.prices[p.resource]*(p.side==='buy'?this.config.economy.buyMultiplier:this.config.economy.sellMultiplier); if(p.side==='buy'){if(this.state.shop.stock[p.resource]<p.amount)fail('商城本周期库存不足'); if(c.stock[p.resource]+p.amount>this.capacity(c))fail('仓储空间不足'); this.pay(c,{money:payment(p.amount,priceCents(price))}); this.credit(c,p.resource,p.amount); this.state.shop.stock[p.resource]-=p.amount;}else{this.pay(c,{[p.resource]:p.amount});this.credit(c,'money',Math.floor(p.amount*priceCents(price)/100));this.state.shop.stock[p.resource]+=p.amount;} return; }
-    if(action==='transfer') { this.amount(p.amount); if(p.resource!=='money'&&(typeof p.resource!=='string'||!Object.hasOwn(this.config.prices,p.resource)))fail('未知物资'); const to=this.city(user,p.to); if(c.stock[p.resource]<p.amount)fail('物资不足'); this.pay(c,{[p.resource]:p.amount});const shipment=this.transport(c,to,p.resource,p.amount,c);return shipment; }
+    if(action==='transfer') { this.amount(p.amount); if(p.resource!=='money'&&(typeof p.resource!=='string'||!Object.hasOwn(this.config.prices,p.resource)))fail('未知物资'); const to=this.city(user,p.to); this.pay(c,{[p.resource]:p.amount});const shipment=this.transport(c,to,p.resource,p.amount,c);return shipment; }
     if(action==='offer') { this.amount(p.amount); if(typeof p.resource!=='string'||!Object.hasOwn(this.config.prices,p.resource))fail('未知物资'); if(!Number.isFinite(p.price)||p.price<this.config.trade.minUnitPrice||p.price>this.config.trade.maxUnitPrice)fail('单价超出服务器允许范围'); if(!['spot','capacity'].includes(p.kind))fail('未知订单类型'); if(this.state.offers.filter(o=>o.owner===user.id&&o.status==='open').length>=this.config.trade.maxOffers)fail('在售挂单数量已达上限');
       const cycles=p.kind==='capacity'?Number(p.cycles):1; if(!Number.isInteger(cycles)||cycles<1||cycles>this.config.trade.maxCycles)fail('合约期数超出服务器允许范围');
       const cents=priceCents(p.price),price=cents/100,perCycle=payment(p.amount,cents),collateral=p.kind==='capacity'?Math.ceil(perCycle*cycles*this.config.economy.collateralRate):0; this.pay(c,p.kind==='spot'?{[p.resource]:p.amount}:{money:collateral});
       this.state.offers.push({id:id(),owner:user.id,seller:user.username,cityId:c.id,resource:p.resource,amount:p.amount,price,priceCents:cents,paymentPerCycle:perCycle,penaltyPerCycle:Math.ceil(perCycle*this.config.economy.collateralRate),kind:p.kind,cycles,collateral,status:'open',createdAt:Date.now()});return; }
     if(action==='cancelOffer') { const o=this.state.offers.find(o=>o.id===p.offerId&&o.cityId===c.id&&o.status==='open');if(!o)fail('挂单不可撤销'); this.credit(c,o.kind==='spot'?o.resource:'money',o.kind==='spot'?o.amount:o.collateral);o.status='cancelled';return; }
     if(action==='buyOffer') {
-      const o=this.state.offers.find(o=>o.id===p.offerId&&o.status==='open');if(!o)fail('挂单已被成交或撤回');if(o.owner===user.id)fail('不能购买自己的挂单'); const from=this.state.cities.find(c=>c.id===o.cityId);this.ready(from);
-      if(o.kind==='capacity'&&this.state.contracts.filter(ct=>ct.status==='active'&&(ct.sellerOwner===user.id||ct.buyerOwner===user.id)).length>=this.config.trade.maxContracts)fail('活跃产能合约数量已达上限');if(o.kind==='capacity'&&this.state.contracts.filter(ct=>ct.status==='active'&&(ct.sellerOwner===from.owner||ct.buyerOwner===from.owner)).length>=this.config.trade.maxContracts)fail('卖家活跃合约已达上限');const total=orderPayment(o)*o.cycles;
+      const o=this.state.offers.find(o=>o.id===p.offerId&&o.status==='open');if(!o)fail('挂单已被成交或撤回');if(o.owner===user.id)fail('不能购买自己的挂单');if(allianceOf(this.state,o.owner)?.external[user.id]?.embargo||allianceOf(this.state,user.id)?.external[o.owner]?.embargo)fail('联盟政策禁止与该玩家运输或贸易'); const from=this.state.cities.find(c=>c.id===o.cityId);this.ready(from);
+      if(o.kind==='capacity'&&this.state.contracts.filter(ct=>ct.status==='active'&&(ct.sellerOwner===user.id||ct.buyerOwner===user.id)).length>=this.config.trade.maxContracts)fail('活跃产能合约数量已达上限');if(o.kind==='capacity'&&this.state.contracts.filter(ct=>ct.status==='active'&&(ct.sellerOwner===from.owner||ct.buyerOwner===from.owner)).length>=this.config.trade.maxContracts)fail('卖家活跃合约已达上限');const effectiveCents=alliancePrice(this.state,o,user.id),effectivePayment=payment(o.amount,effectiveCents),total=effectivePayment*o.cycles;
       if(o.kind==='spot') { // Roll back all game state on action errors in the HTTP layer.
         this.pay(c,{money:total}); const shipment=this.transport(from,c,o.resource,o.amount,c); this.credit(from,'money',total); o.shipmentId=shipment.id;
-      } else { this.pay(c,{money:total}); this.state.contracts.push({id:id(),offerId:o.id,seller:from.id,buyer:c.id,resource:o.resource,amount:o.amount,price:o.price,priceCents:o.priceCents,paymentPerCycle:orderPayment(o),penaltyPerCycle:o.penaltyPerCycle??Math.ceil(orderPayment(o)*this.config.economy.collateralRate),sellerOwner:from.owner,buyerOwner:c.owner,remaining:o.cycles,totalCycles:o.cycles,escrow:total,collateral:o.collateral,nextAt:Date.now()+this.config.rules.cycleSeconds*1000,status:'active',delivered:0,defaults:0}); }
+      } else { this.pay(c,{money:total}); this.state.contracts.push({id:id(),offerId:o.id,seller:from.id,buyer:c.id,resource:o.resource,amount:o.amount,price:effectiveCents/100,priceCents:effectiveCents,paymentPerCycle:effectivePayment,penaltyPerCycle:Math.ceil(effectivePayment*(o.penaltyPerCycle??Math.ceil(orderPayment(o)*this.config.economy.collateralRate))/orderPayment(o)),sellerOwner:from.owner,buyerOwner:c.owner,remaining:o.cycles,totalCycles:o.cycles,escrow:total,collateral:o.collateral,nextAt:Date.now()+this.config.rules.cycleSeconds*1000,status:'active',delivered:0,defaults:0}); }
       o.status='sold';this.log(`${user.username} 与 ${o.seller} 达成${o.kind==='spot'?'现货':'产能'}交易`); return;
     }
     fail('未知操作');
@@ -129,7 +153,6 @@ export class Game {
     for(const c of this.state.cities){if(c.readyAt)c.readyAt+=milliseconds;if(c.upgradeAt)c.upgradeAt+=milliseconds;for(const b of c.buildings)if(b.readyAt)b.readyAt+=milliseconds;for(const rule of c.transferRules||[])rule.nextAt+=milliseconds;}
     for(const sh of this.state.shipments)if(sh.status==='transit'){sh.departAt+=milliseconds;sh.arriveAt+=milliseconds;}
     for(const ct of this.state.contracts)if(ct.status==='active')ct.nextAt+=milliseconds;
-    for(const i of this.state.infiltrations){i.startedAt+=milliseconds;if(i.finishedAt)i.finishedAt+=milliseconds;}
     if(this.state.shop.refreshAt)this.state.shop.refreshAt+=milliseconds;
   }
   tick(now=Date.now()) {
@@ -144,12 +167,12 @@ export class Game {
     for(const c of s.cities){
       if(c.readyAt){if(now>=c.readyAt){c.readyAt=null;if(c.foundingSource){const source=s.cities.find(v=>v.id===c.foundingSource);if(source)source.transportWorkers=Math.max(0,(source.transportWorkers||0)-(c.foundingWorkers??this.config.rules.foundingWorkers));delete c.foundingSource;}this.log(`「${c.name}」建成`,c.owner);}else continue;}
       for(const b of c.buildings)if(b.readyAt&&now>=b.readyAt){b.readyAt=null;if(b.upgrading){b.level++;b.upgrading=false;}this.log(`${c.name}：${this.config.buildings[b.type].name}施工完成`,c.owner);}
-      const needs=Object.fromEntries(Object.entries(this.config.needs).map(([k,v])=>[k,c.population*v*2]));for(const b of c.buildings.filter(b=>!b.readyAt)){const def=this.config.buildings[b.type];for(const [k,v]of Object.entries({...def.input,power:def.power||0}))needs[k]=(needs[k]||0)+v*b.level*2;}requestSupply(this,c,needs,now);
+
       const before={...c.stock}, labor=Math.min(1,Math.max(0,this.operatingWorkers(c) / Math.max(1,this.operatingDemand(c))));c.efficiency=labor;
       const active=c.buildings.filter(b=>!b.readyAt).sort((a,b)=>Number(!!this.config.buildings[b.type].output.power)-Number(!!this.config.buildings[a.type].output.power));
       let comfort=this.config.economy.baseComfort,education=0,housing=this.config.economy.housing;
-      for(const b of active){const def=this.config.buildings[b.type];let scale=b.level*labor;const tile=this.tile(b.x,b.y);scale*=this.config.terrains[tile.terrain].bonus[b.type==='vegetableFarm'?'farm':b.type]||(def.mine?this.config.terrains[tile.terrain].bonus.mine:1)||1;if(['farm','vegetableFarm'].includes(b.type)&&this.nearWater(b.x,b.y))scale*=1+this.config.economy.waterFarmBonus;
-        const input={...def.input};if(def.power)input.power=def.power;
+      for(const b of active){const def=this.definition(b);let scale=b.level*labor;const tile=this.tile(b.x,b.y);scale*=this.config.terrains[tile.terrain].bonus[b.type==='vegetableFarm'?'farm':b.type]||(def.mine?this.config.terrains[tile.terrain].bonus.mine:1)||1;if(['farm','vegetableFarm'].includes(b.type)&&this.nearWater(b.x,b.y))scale*=1+this.config.economy.waterFarmBonus;
+        const input={...def.input};if(def.power)input.power=(input.power||0)+def.power;
         for(const [k,v]of Object.entries(input))if(v*scale*dt>0)scale=Math.min(scale,(c.stock[k]||0)/(v*dt));
         for(const [k,v]of Object.entries(input))c.stock[k]=round(Math.max(0,(c.stock[k]||0)-v*scale*dt));
         for(const [k,v]of Object.entries(def.output))this.credit(c,k,v*scale*dt);
@@ -178,9 +201,9 @@ export class Game {
     this.state.offers=this.state.offers.filter((o,i,a)=>o.status==='open'||i>=a.length-this.config.trade.history);
   }
   view(user,worldToken) {
-    return { settings:this.config,players:[],pendingActions:this.state.pendingActions.filter(p=>p.user.id===user.id),messages:this.state.messages.filter(m=>!m.to||m.to===user.id||m.from===user.id).slice(-100),infiltrations:this.state.infiltrations.filter(i=>i.owner===user.id||this.state.cities.some(c=>c.id===i.target&&c.owner===user.id)),world:worldToken===`${this.state.world.seed}:${this.state.world.revision}`?{...this.state.world,tiles:undefined}:this.state.world,claims:this.state.claims,paused:this.state.paused,serverTime:Date.now(),shop:this.state.shop,
-      cities:this.state.cities.map(c=>c.owner===user.id||user.role==='root'?{...c,territoryCapacity:territoryCapacity(c),territoryUsed:Object.values(this.state.claims).filter(v=>v===c.id).length,capacity:this.capacity(c),workers:this.workers(c),workerDemand:this.demand(c),operatingDemand:this.operatingDemand(c),constructionBusy:this.constructionBusy(c),constructionAvailable:this.constructionAvailable(c),availableWorkers:Math.max(0,this.available(c))}:{id:c.id,owner:c.owner,ownerName:c.ownerName,name:c.name,x:c.x,y:c.y,level:c.level,population:c.population,policy:c.policy,salePrice:c.salePrice,infiltration: this.state.cities.filter(a=>a.owner===user.id).map(a=>({source:a.id,...borderStats(this,c,a)})),readyAt:c.readyAt,buildings:c.buildings.map(({id,type,x,y,level,readyAt})=>({id,type,x,y,level,readyAt}))}),
+    return { version:VERSION,settings:this.config,players:[],pendingActions:this.state.pendingActions.filter(p=>p.user.id===user.id),messages:this.state.messages.filter(m=>m.allianceId?allianceOf(this.state,user.id)?.id===m.allianceId:!m.to||m.to===user.id||m.from===user.id).slice(-100),alliances:this.state.alliances,profiles:this.state.profiles,rails:this.state.rails,world:worldToken===`${this.state.world.seed}:${this.state.world.revision}`?{...this.state.world,tiles:undefined}:this.state.world,claims:this.state.claims,paused:this.state.paused,serverTime:Date.now(),shop:this.state.shop,
+      cities:this.state.cities.map(c=>c.owner===user.id||user.role==='root'?{...c,territoryCapacity:territoryCapacity(c),territoryUsed:Object.values(this.state.claims).filter(v=>v===c.id).length,capacity:this.capacity(c),workers:this.workers(c),workerDemand:this.demand(c),operatingDemand:this.operatingDemand(c),constructionBusy:this.constructionBusy(c),constructionAvailable:this.constructionAvailable(c),availableWorkers:Math.max(0,this.available(c)),transportAvailable:this.transportAvailable(c),supplyLimits:Object.fromEntries(Object.keys(c.stock).map(k=>[k,supplyLimit(this,c,k)])),saleLimits:Object.fromEntries(Object.keys(this.config.prices).map(k=>[k,saleLimit(this,c,k)]))}:{id:c.id,owner:c.owner,ownerName:c.ownerName,name:c.name,x:c.x,y:c.y,level:c.level,population:c.population,policy:c.policy,salePrice:c.salePrice,readyAt:c.readyAt,buildings:c.buildings.map(({id,type,x,y,level,readyAt})=>({id,type,x,y,level,readyAt}))}),
       offers:this.state.offers.filter(o=>o.status==='open'),contracts:this.state.contracts.filter(ct=>user.role==='root'||ct.sellerOwner===user.id||ct.buyerOwner===user.id),
-      shipments:this.state.shipments.filter(sh=>user.role==='root'||sh.owner===user.id||this.state.cities.some(c=>c.id===sh.to&&c.owner===user.id)),events:this.state.events.filter(e=>!e.owner||e.owner===user.id||user.role==='root').slice(0,40) };
+      shipments:this.state.shipments.filter(sh=>sh.owner===user.id||this.state.cities.some(c=>(c.id===sh.to||c.id===sh.from)&&c.owner===user.id)),events:this.state.events.filter(e=>!e.owner||e.owner===user.id||user.role==='root').slice(0,40) };
   }
 }

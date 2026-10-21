@@ -7,3 +7,5 @@ export function buildingStats(def, level = 1) {
     housing: (def.housing || 0) * level, storage: (def.storage || 0) * level,
     comfort: (def.comfort || 0) * level, education: (def.education || 0) * level };
 }
+
+export function buildingDefinition(base,building){return {...base,...building?.overrides,input:{...base.input,...building?.overrides?.input},output:{...base.output,...building?.overrides?.output}};}

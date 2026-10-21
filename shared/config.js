@@ -17,6 +17,8 @@ export const TERRAINS = {
 };
 const b = (name, icon, category, cost, workers, output = {}, input = {}, extra = {}) => ({ name, icon, category, cost, workers, output, input, time: 18, power: 1, ...extra });
 export const BUILDINGS = {
+  airport: b('机场','✈','设施',{money:800,stone:100,iron:60},8,{}, {},{power:4}),
+  station: b('火车站','▣','设施',{money:400,stone:60,iron:40},5,{}, {},{power:2}),
   vegetableFarm: b('蔬菜田', '♣', '生产', { money: 65, wood: 15, stone: 5 }, 4, { vegetables: 18 }, { water: 2 }, { power: 0 }),
   blastFurnace: b('高炉', '▰', '工业', { money: 160, stone: 35, wood: 20 }, 6, { iron: 8 }, { ironOre: 10, coal: 4 }, { power: 2 }),
   copperSmelter: b('炼铜厂', '⬡', '工业', { money: 160, stone: 35, iron: 10 }, 6, { copper: 6 }, { copperOre: 8, coal: 3 }, { power: 2 }),
