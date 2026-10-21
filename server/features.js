@@ -20,7 +20,8 @@ function settleOwnership(game,c,owner){
   for(const o of game.state.offers.filter(o=>o.cityId===c.id&&o.status==='open')){game.credit(c,o.kind==='spot'?o.resource:'money',o.kind==='spot'?o.amount:o.collateral);o.status='cancelled';}
   for(const ct of game.state.contracts.filter(ct=>ct.status==='active'&&(ct.seller===c.id||ct.buyer===c.id))){const seller=game.state.cities.find(c=>c.id===ct.seller),buyer=game.state.cities.find(c=>c.id===ct.buyer);if(buyer)game.credit(buyer,'money',ct.escrow);if(seller)game.credit(seller,'money',ct.collateral);ct.escrow=ct.collateral=0;ct.remaining=0;ct.status='cancelled';}
   game.state.pendingActions=game.state.pendingActions.filter(a=>a.cityId!==c.id);
-  c.owner=owner.id;c.ownerName=owner.username;c.salePrice=null;c.policy={embargo:false,tariff:0,players:{}};c.thresholds={};c.autoSupply=true;
+  c.owner=owner.id;c.ownerName=owner.username;c.salePrice=null;c.policy={embargo:false,tariff:0,players:{}};c.thresholds={};c.supplyThresholds={};c.transferRules=[];c.constructionReserve=game.config.rules.defaultConstructionReserve;c.autoSupply=true;
+  for(const other of game.state.cities)other.transferRules=(other.transferRules||[]).filter(r=>r.to!==c.id);
 }
 export function featureAction(game,user,action,p){
   if(action==='message'){
@@ -28,7 +29,7 @@ export function featureAction(game,user,action,p){
     if(game.state.messages.some(m=>m.from===user.id&&Date.now()-m.time<2000))fail('发送消息需间隔 2 秒');
     game.state.messages.push({id:randomUUID(),from:user.id,name:user.username,to:p.recipient?.id??null,toName:p.recipient?.username??null,text,time:Date.now()});game.state.messages=game.state.messages.slice(-500);return true;
   }
-  const actions=['unlock','threshold','autoSupply','convertFarm','sellCity','buyCity','infiltrate','cancelPending'];if(!actions.includes(action))return false;
+  const actions=['unlock','threshold','autoSupply','convertFarm','sellCity','buyCity','infiltrate','cancelPending','constructionReserve','supplyThreshold','transferRule','removeTransferRule'];if(!actions.includes(action))return false;
   if(action==='buyCity'){
     const target=game.state.cities.find(c=>c.id===p.targetId),buyer=game.city(user,p.cityId);game.ready(buyer);
     if(!target||target.owner===user.id||!target.salePrice)fail('城池不在出售中');if(p.expectedPrice!==undefined&&p.expectedPrice!==target.salePrice)fail('售价已变更，请重新确认');if(game.state.cities.filter(c=>c.owner===user.id).length>=game.config.rules.maxCities)fail('城池数量已达到服务器上限');
@@ -43,7 +44,26 @@ export function featureAction(game,user,action,p){
     if(!neighbors(x,y).some(([xx,yy])=>game.state.claims[`${xx},${yy}`]===c.id))fail('只能解锁紧邻本城领地的地块');
     game.pay(c,{money:game.config.territory.unlockMoney,wood:game.config.territory.unlockWood,stone:game.config.territory.unlockStone});game.state.claims[`${x},${y}`]=c.id;expandWorld(game.state.world,[{x,y}],game.config.territory);
   }
-  if(action==='threshold'){if(typeof p.resource!=='string'||!Object.hasOwn(game.config.prices,p.resource))fail('未知物资');if(p.value!==null&&(!Number.isFinite(p.value)||p.value<0||p.value>1000000))fail('阈值须为 0–1000000，留空关闭');if(p.value===null)delete c.thresholds[p.resource];else c.thresholds[p.resource]=p.value;}
+  if(action==='threshold'){if(typeof p.resource!=='string'||!Object.hasOwn(game.config.prices,p.resource))fail('未知物资');if(p.value!==null&&(!Number.isFinite(p.value)||p.value<0||p.value>1000000))fail('阈值须为 0–1000000，留空关闭');if(p.value!==null&&(c.supplyThresholds[p.resource]??0)>p.value)fail('自动出售阈值不能低于补货下限');if(p.value===null)delete c.thresholds[p.resource];else c.thresholds[p.resource]=p.value;}
+  if(action==='constructionReserve'){
+    if(!Number.isSafeInteger(p.value)||p.value<0||p.value>100000)fail('预留建筑工人数须为 0–100000 的整数');
+    c.constructionReserve=p.value;
+  }
+  if(action==='supplyThreshold'){
+    if(typeof p.resource!=='string'||!Object.hasOwn(c.stock,p.resource))fail('未知物资');
+    if(p.value!==null&&(!Number.isFinite(p.value)||p.value<0||p.value>1000000))fail('补货下限须为 0–1000000，留空关闭');
+    if(p.value!==null&&Object.hasOwn(c.thresholds,p.resource)&&p.value>c.thresholds[p.resource])fail('补货下限不能高于自动出售阈值');
+    if(p.value===null)delete c.supplyThresholds[p.resource];else c.supplyThresholds[p.resource]=p.value;
+  }
+  if(action==='transferRule'){
+    const to=game.city(user,p.to);game.ready(to);if(to.id===c.id)fail('请选择另一座城池');
+    if(typeof p.resource!=='string'||!Object.hasOwn(c.stock,p.resource))fail('未知物资');game.amount(p.amount);
+    const old=c.transferRules.find(r=>r.to===to.id&&r.resource===p.resource);
+    if(old){old.amount=p.amount;}else{if(c.transferRules.length>=game.config.trade.maxTransferRules)fail('周期调配规则数量已达服务器上限');c.transferRules.push({id:randomUUID(),to:to.id,resource:p.resource,amount:p.amount,nextAt:Date.now()+game.config.rules.cycleSeconds*1000,status:'waiting'});}
+  }
+  if(action==='removeTransferRule'){
+    if(!c.transferRules.some(r=>r.id===p.ruleId))fail('周期调配规则不存在');c.transferRules=c.transferRules.filter(r=>r.id!==p.ruleId);
+  }
   if(action==='autoSupply')c.autoSupply=!!p.value;
   if(action==='cancelPending')game.state.pendingActions=game.state.pendingActions.filter(a=>a.cityId!==c.id);
   if(action==='convertFarm'){const b=c.buildings.find(b=>b.id===p.buildingId);if(!b||b.readyAt||!['farm','vegetableFarm'].includes(b.type))fail('只能转换已完工的粮田或蔬菜田');b.type=b.type==='farm'?'vegetableFarm':'farm';}
@@ -57,23 +77,44 @@ export function featureAction(game,user,action,p){
   }
   return true;
 }
-export function requestSupply(game,c,cost,now=Date.now()){
-  if(c.autoSupply===false)return false;let sent=false;
+const inboundAmount=(game,c,resource)=>game.state.shipments.filter(s=>s.status==='transit'&&s.to===c.id&&s.resource===resource).reduce((n,s)=>n+s.amount,0);
+function donorReserve(game,c,resource){return Math.max(c.supplyThresholds?.[resource]||0,resource==='money'?100:Math.ceil(c.population*(game.config.needs[resource]||0)*2));}
+export function sendSupply(game,from,to,resource,requested,now=Date.now()){
+  const inbound=inboundAmount(game,to,resource);
+  const room=resource==='money'?Infinity:Math.max(0,game.capacity(to)-(to.stock[resource]||0)-inbound);
+  const amount=Math.min(requested,game.config.trade.maxAmount,Math.floor((from.stock[resource]||0)-donorReserve(game,from,resource)),Math.floor(room),Math.max(0,game.available(from))*game.config.economy.unitsPerWorker);
+  const whole=Math.floor(amount);if(whole<1)return {sent:0,reason:'stock-workers-capacity'};
+  try{
+    const route=game.route(from,to),fee=Math.ceil(route.distance*game.config.economy.freightDistance+whole*game.config.economy.freightAmount)+Object.values(route.tolls).reduce((n,rate)=>n+Math.ceil(whole*(game.config.prices[resource]??1)*rate/100),0);
+    if(from.stock.money<fee+(resource==='money'?whole:0)+(from.supplyThresholds.money||0))return {sent:0,reason:'funds'};
+    const shipment=game.transport(from,to,resource,whole,from,now);game.pay(from,{[resource]:whole});return {sent:whole,shipment:shipment.id};
+  }catch{return {sent:0,reason:'route-workers'};}
+}
+export function requestSupply(game,c,cost,now=Date.now(),manual=false){
+  if(!manual&&c.autoSupply===false)return false;let sent=false;
   for(const [resource,need] of Object.entries(cost)){
-    const inbound=game.state.shipments.filter(s=>s.status==='transit'&&s.to===c.id&&s.resource===resource).reduce((n,s)=>n+s.amount,0);
-    let shortage=Math.max(0,Math.ceil(need-(c.stock[resource]||0)-inbound));
+    let shortage=Math.max(0,Math.ceil(need-(c.stock[resource]||0)-inboundAmount(game,c,resource)));
     for(const from of game.state.cities.filter(v=>v.owner===c.owner&&v.id!==c.id&&!v.readyAt).sort((a,b)=>Math.abs(a.x-c.x)+Math.abs(a.y-c.y)-Math.abs(b.x-c.x)-Math.abs(b.y-c.y))){
-      if(!shortage)break;const reserve=resource==='money'?100:Math.ceil(from.population*(game.config.needs[resource]||0)*2),amount=Math.min(shortage,game.config.trade.maxAmount,Math.floor((from.stock[resource]||0)-reserve),resource==='money'?game.config.trade.maxAmount:Math.floor(game.capacity(c)-(c.stock[resource]||0)-inbound));if(amount<1)continue;
-      try{
-        const route=game.route(from,c),fee=Math.ceil(route.distance*game.config.economy.freightDistance+amount*game.config.economy.freightAmount)+Object.values(route.tolls).reduce((n,rate)=>n+Math.ceil(amount*(game.config.prices[resource]??1)*rate/100),0);
-        if(from.stock.money<fee+(resource==='money'?amount:0))continue;
-        game.transport(from,c,resource,amount,from,now);game.pay(from,{[resource]:amount});shortage-=amount;sent=true;
-      }catch{/* All transport validation happens before mutation. Try another source. */}
+      if(!shortage)break;const result=sendSupply(game,from,c,resource,shortage,now);shortage-=result.sent;sent ||= result.sent>0;
     }
   }return sent;
 }
 export function tickFeatures(game,now,dt){
   for(const c of game.state.cities.filter(c=>!c.readyAt)){
+    c.transferRules=c.transferRules.filter(r=>game.state.cities.some(to=>to.id===r.to&&to.owner===c.owner));
+    for(const rule of c.transferRules){
+      if(now<rule.nextAt)continue;
+      // Skip missed periods: never emit an offline/backlogged burst of shipments.
+      rule.nextAt=now+game.config.rules.cycleSeconds*1000;
+      const to=game.state.cities.find(to=>to.id===rule.to);
+      if(to.readyAt){rule.status='target-building';rule.lastAmount=0;continue;}
+      const result=sendSupply(game,c,to,rule.resource,rule.amount,now);
+      rule.lastAt=now;rule.lastAmount=result.sent;rule.status=result.sent===rule.amount?'sent':result.sent?'partial':result.reason;
+    }
+  }
+  for(const c of game.state.cities.filter(c=>!c.readyAt)){
+    const targets=Object.fromEntries(Object.entries(c.supplyThresholds).filter(([k,value])=>c.stock[k]<value));
+    requestSupply(game,c,targets,now,true);
     for(const [k,limit] of Object.entries(c.thresholds)){const amount=Math.max(0,Math.floor(c.stock[k]-limit));if(amount){game.pay(c,{[k]:amount});game.credit(c,'money',Math.floor(amount*Math.round(game.config.prices[k]*game.config.economy.sellMultiplier*100)/100));game.state.shop.stock[k]=(game.state.shop.stock[k]||0)+amount;}}
   }
   for(const pending of [...game.state.pendingActions]){

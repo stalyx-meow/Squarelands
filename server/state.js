@@ -10,6 +10,7 @@ export function migrateState(state) {
     for(const [k,v] of Object.entries(c.stock))if(!Object.hasOwn(RESOURCES,k)||!Number.isFinite(v)||v<0)throw new Error(`存档损坏：${c.name} 的 ${k} 库存无效；请从备份恢复`);
     for(const k of Object.keys(RESOURCES))c.stock[k]??=0;
     if(legacy){c.stock.clothing=c.stock.goods;c.stock.vegetables=c.stock.food*.3;c.stock.meatProducts=c.stock.meat*.3;}
+    c.constructionReserve??=state.settings?.rules?.defaultConstructionReserve??4;c.supplyThresholds??={};c.transferRules??=[];
     c.thresholds??={};c.policy.players??={};c.autoSupply??=true;
   }
   // Preserve exactly the currency locked under the old per-cycle rounding rule.

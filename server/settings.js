@@ -1,9 +1,9 @@
 import { BUILDINGS, PRICES, START_STOCK, RULES, TERRAINS } from '../shared/config.js';
 export const DEFAULT_SETTINGS={
   prices:PRICES,startStock:START_STOCK,colonyStock:{...START_STOCK,money:400,wood:80,stone:70,iron:10,coal:20,copper:0},buildings:BUILDINGS,terrains:TERRAINS,
-  rules:{...RULES,cityUpgradeCost:{money:450,wood:80,stone:90,iron:15},foundingWorkers:8,startPopulation:80,maxCities:5,constructionWorkers:4,civilWorkers:4,laborRatio:.62,minPopulation:40},
+  rules:{...RULES,cityUpgradeCost:{money:450,wood:80,stone:90,iron:15},foundingWorkers:8,startPopulation:80,maxCities:5,constructionWorkers:4,defaultConstructionReserve:4,civilWorkers:4,laborRatio:.62,minPopulation:40},
   economy:{buyMultiplier:1.2,sellMultiplier:.75,freightDistance:.25,freightAmount:.03,freightBaseSeconds:8,freightSeconds:1.2,unitsPerWorker:50,collateralRate:.2,taxRate:.36,educationTax:.025,waterFarmBonus:.15,baseComfort:64,growthRate:.012,declineRate:.025,housing:100,meatRate:.012,meatComfort:4,comfortGrowth:60,comfortDecline:40,shortagePenalty:20,overcrowdingPenalty:.7,buildingCostMultiplier:1.65,demolishRefund:.3},
-  trade:{maxOffers:20,maxContracts:40,maxCycles:20,maxAmount:10000,minUnitPrice:.1,maxUnitPrice:10000,maxTariff:30,history:100},
+  trade:{maxTransferRules:100,maxOffers:20,maxContracts:40,maxCycles:20,maxAmount:10000,minUnitPrice:.1,maxUnitPrice:10000,maxTariff:30,history:100},
   needs:{food:.04,goods:.04,vegetables:.035,clothing:.025,meatProducts:.012,water:.09,power:.04},
   territory:{unlockMoney:30,unlockWood:5,unlockStone:5,margin:4,expansion:16,maxTiles:262144},
   infiltration:{minContact:3,minRatio:.25,costMoney:300,costGoods:20,workers:4,progressPerCycle:10,cooldownSeconds:300,baseChance:.1,borderWeight:.5,populationWeight:.15,unrestWeight:.2,levelDefense:.02,minChance:.05,maxChance:.85}
@@ -23,11 +23,11 @@ function range(path){
   if(['progressPerCycle'].includes(key))return [.1,100,false];
   if(group==='prices')return [.01,100000,false];
   if(key==='time'||key==='foundingSeconds')return [1,86400,true];
-  if(['workers','constructionWorkers','civilWorkers','minContact','housing','storage','baseStorage','shopStock'].includes(key))return [0,100000,true];
+  if(['workers','constructionWorkers','defaultConstructionReserve','civilWorkers','minContact','housing','storage','baseStorage','shopStock'].includes(key))return [0,100000,true];
   if(['freightBaseSeconds','freightSeconds'].includes(key))return [0,3600,false];
   if(['comfortGrowth','comfortDecline','maxTariff'].includes(key))return [0,100,false];
   if(key==='buildingCostMultiplier')return [1,5,false];
-  if(['maxOffers','maxContracts','maxCycles','history'].includes(key))return [1,1000,true];
+  if(['maxTransferRules','maxOffers','maxContracts','maxCycles','history'].includes(key))return [1,1000,true];
   if(key==='comfort')return [-100,100,false];
   return [0,1000000,false];
 }

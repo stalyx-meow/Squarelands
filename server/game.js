@@ -31,7 +31,11 @@ export class Game {
   claim(c) { for(const key of this.area(c.x,c.y,c.level)) if(!this.state.claims[key]) this.state.claims[key]=c.id; }
   workers(c) { return Math.floor(c.population*this.config.rules.laborRatio); }
   demand(c) { return this.config.rules.civilWorkers*c.level + c.buildings.reduce((s,b)=>s+(b.readyAt?this.config.rules.constructionWorkers:this.config.buildings[b.type].workers*b.level),0); }
-  available(c) { return this.workers(c)-this.demand(c)-(c.transportWorkers||0)-(c.upgradeAt?this.config.rules.constructionWorkers:0); }
+  constructionBusy(c) { return (c.buildings.filter(b=>b.readyAt).length+(c.upgradeAt?1:0))*this.config.rules.constructionWorkers; }
+  operatingDemand(c) { return this.config.rules.civilWorkers*c.level+c.buildings.filter(b=>!b.readyAt).reduce((n,b)=>n+this.config.buildings[b.type].workers*b.level,0); }
+  operatingWorkers(c) { return Math.max(0,this.workers(c)-(c.transportWorkers||0)-Math.max(c.constructionReserve??4,this.constructionBusy(c))); }
+  available(c) { return this.operatingWorkers(c)-this.operatingDemand(c); }
+  constructionAvailable(c) { return Math.max(0,this.workers(c)-(c.transportWorkers||0)-this.constructionBusy(c)-Math.min(this.operatingDemand(c),this.operatingWorkers(c))); }
   nearWater(x,y) { return [[x+1,y],[x-1,y],[x,y+1],[x,y-1]].some(([xx,yy])=>this.inBounds(xx,yy)&&['river','lake'].includes(this.tile(xx,yy)?.terrain)); }
   found(user, {x,y,name,sourceCityId}) {
     if(!Number.isInteger(x)||!Number.isInteger(y)||!this.inBounds(x,y)) fail('请选择有效地块');
@@ -43,7 +47,7 @@ export class Game {
     if(owned.length) { const source=this.city(user,sourceCityId); this.ready(source); if(this.available(source)<this.config.rules.foundingWorkers) fail('建立新城所需空闲工人不足'); this.pay(source,this.config.rules.foundingCost); source.transportWorkers=(source.transportWorkers||0)+this.config.rules.foundingWorkers; }
     const c={id:id(),owner:user.id,ownerName:user.username,name:String(name||'新城').trim().slice(0,18)||'新城',x,y,level:1,population:this.config.rules.startPopulation,comfort:65,education:0,stock:{...this.config.startStock},buildings:[],policy:{embargo:false,tariff:0},readyAt:Date.now()+this.config.rules.foundingSeconds*1000,rates:{},efficiency:1};
     if(owned.length) { c.stock={...this.config.colonyStock};c.foundingSource=sourceCityId;c.foundingWorkers=this.config.rules.foundingWorkers; }
-    c.thresholds={};c.autoSupply=true;c.policy.players={};this.state.cities.push(c); this.claim(c);expandWorld(this.state.world,this.area(c.x,c.y,c.level).map(key=>{const [x,y]=key.split(',').map(Number);return {x,y};}),this.config.territory); this.log(`${user.username} 正在建立「${c.name}」`); return c.id;
+    c.constructionReserve=this.config.rules.defaultConstructionReserve;c.supplyThresholds={};c.transferRules=[];c.thresholds={};c.autoSupply=true;c.policy.players={};this.state.cities.push(c); this.claim(c);expandWorld(this.state.world,this.area(c.x,c.y,c.level).map(key=>{const [x,y]=key.split(',').map(Number);return {x,y};}),this.config.territory); this.log(`${user.username} 正在建立「${c.name}」`); return c.id;
   }
   build(user, {cityId,type,x,y}) {
     const c=this.city(user,cityId); this.ready(c); const def=Object.hasOwn(this.config.buildings,type)?this.config.buildings[type]:null; if(!def) fail('未知建筑');
@@ -52,18 +56,18 @@ export class Game {
     const tile=this.tile(x,y); if(['ocean','river','lake'].includes(tile.terrain)) fail('不能在水面建设');
     if(def.deposit&&tile.deposit!==def.deposit) fail(`此建筑需要${RESOURCES[def.deposit][0]}矿藏`);
     if(def.waterSource&&!this.nearWater(x,y)) fail('自来水厂必须紧邻河流或湖泊');
-    if(this.available(c)<this.config.rules.constructionWorkers) fail('建造所需空闲工人不足');
+    if(this.constructionAvailable(c)<this.config.rules.constructionWorkers) fail('建造所需空闲工人不足');
     this.pay(c,this.buildingCost(type)); c.buildings.push({id:id(),type,x,y,level:1,readyAt:Date.now()+def.time*1000}); this.log(`${c.name}：开始建造${def.name}`,user.id);
   }
   upgrade(user, {cityId,buildingId}) {
     const c=this.city(user,cityId); this.ready(c);
     if(buildingId) {
       const b=c.buildings.find(b=>b.id===buildingId); if(!b) fail('建筑不存在'); if(b.readyAt) fail('建筑正在施工'); if(b.level>=this.config.rules.maxBuildingLevel) fail('已达到最高等级');
-      if(this.available(c)<this.config.rules.constructionWorkers) fail('升级所需空闲工人不足');
+      if(this.constructionAvailable(c)<this.config.rules.constructionWorkers) fail('升级所需空闲工人不足');
       this.pay(c,this.buildingCost(b.type,b.level+1)); b.readyAt=Date.now()+this.config.buildings[b.type].time*(b.level+1)*1000; b.upgrading=true;
     } else {
       if(c.upgradeAt) fail('城池正在升级'); if(c.level>=this.config.rules.maxCityLevel) fail('已达到最高等级');
-      if(this.available(c)<this.config.rules.constructionWorkers) fail('需满足全部岗位并留出足够施工工人');
+      if(this.constructionAvailable(c)<this.config.rules.constructionWorkers) fail('城池升级所需建筑工人不足');
       this.pay(c,this.cityCost(c.level)); c.upgradeAt=Date.now()+30000*c.level;
     }
   }
@@ -122,7 +126,7 @@ export class Game {
   }
   shiftTime(milliseconds) {
     if(milliseconds<=0)return;
-    for(const c of this.state.cities){if(c.readyAt)c.readyAt+=milliseconds;if(c.upgradeAt)c.upgradeAt+=milliseconds;for(const b of c.buildings)if(b.readyAt)b.readyAt+=milliseconds;}
+    for(const c of this.state.cities){if(c.readyAt)c.readyAt+=milliseconds;if(c.upgradeAt)c.upgradeAt+=milliseconds;for(const b of c.buildings)if(b.readyAt)b.readyAt+=milliseconds;for(const rule of c.transferRules||[])rule.nextAt+=milliseconds;}
     for(const sh of this.state.shipments)if(sh.status==='transit'){sh.departAt+=milliseconds;sh.arriveAt+=milliseconds;}
     for(const ct of this.state.contracts)if(ct.status==='active')ct.nextAt+=milliseconds;
     for(const i of this.state.infiltrations){i.startedAt+=milliseconds;if(i.finishedAt)i.finishedAt+=milliseconds;}
@@ -141,7 +145,7 @@ export class Game {
       if(c.readyAt){if(now>=c.readyAt){c.readyAt=null;if(c.foundingSource){const source=s.cities.find(v=>v.id===c.foundingSource);if(source)source.transportWorkers=Math.max(0,(source.transportWorkers||0)-(c.foundingWorkers??this.config.rules.foundingWorkers));delete c.foundingSource;}this.log(`「${c.name}」建成`,c.owner);}else continue;}
       for(const b of c.buildings)if(b.readyAt&&now>=b.readyAt){b.readyAt=null;if(b.upgrading){b.level++;b.upgrading=false;}this.log(`${c.name}：${this.config.buildings[b.type].name}施工完成`,c.owner);}
       const needs=Object.fromEntries(Object.entries(this.config.needs).map(([k,v])=>[k,c.population*v*2]));for(const b of c.buildings.filter(b=>!b.readyAt)){const def=this.config.buildings[b.type];for(const [k,v]of Object.entries({...def.input,power:def.power||0}))needs[k]=(needs[k]||0)+v*b.level*2;}requestSupply(this,c,needs,now);
-      const before={...c.stock}, labor=Math.min(1,Math.max(0,(this.workers(c)-(c.transportWorkers||0)-(c.upgradeAt?this.config.rules.constructionWorkers:0)) / Math.max(1,this.demand(c))));c.efficiency=labor;
+      const before={...c.stock}, labor=Math.min(1,Math.max(0,this.operatingWorkers(c) / Math.max(1,this.operatingDemand(c))));c.efficiency=labor;
       const active=c.buildings.filter(b=>!b.readyAt).sort((a,b)=>Number(!!this.config.buildings[b.type].output.power)-Number(!!this.config.buildings[a.type].output.power));
       let comfort=this.config.economy.baseComfort,education=0,housing=this.config.economy.housing;
       for(const b of active){const def=this.config.buildings[b.type];let scale=b.level*labor;const tile=this.tile(b.x,b.y);scale*=this.config.terrains[tile.terrain].bonus[b.type==='vegetableFarm'?'farm':b.type]||(def.mine?this.config.terrains[tile.terrain].bonus.mine:1)||1;if(['farm','vegetableFarm'].includes(b.type)&&this.nearWater(b.x,b.y))scale*=1+this.config.economy.waterFarmBonus;
@@ -175,7 +179,7 @@ export class Game {
   }
   view(user,worldToken) {
     return { settings:this.config,players:[],pendingActions:this.state.pendingActions.filter(p=>p.user.id===user.id),messages:this.state.messages.filter(m=>!m.to||m.to===user.id||m.from===user.id).slice(-100),infiltrations:this.state.infiltrations.filter(i=>i.owner===user.id||this.state.cities.some(c=>c.id===i.target&&c.owner===user.id)),world:worldToken===`${this.state.world.seed}:${this.state.world.revision}`?{...this.state.world,tiles:undefined}:this.state.world,claims:this.state.claims,paused:this.state.paused,serverTime:Date.now(),shop:this.state.shop,
-      cities:this.state.cities.map(c=>c.owner===user.id||user.role==='root'?{...c,territoryCapacity:territoryCapacity(c),territoryUsed:Object.values(this.state.claims).filter(v=>v===c.id).length,capacity:this.capacity(c),workers:this.workers(c),workerDemand:this.demand(c)}:{id:c.id,owner:c.owner,ownerName:c.ownerName,name:c.name,x:c.x,y:c.y,level:c.level,population:c.population,policy:c.policy,salePrice:c.salePrice,infiltration: this.state.cities.filter(a=>a.owner===user.id).map(a=>({source:a.id,...borderStats(this,c,a)})),readyAt:c.readyAt,buildings:c.buildings.map(({id,type,x,y,level,readyAt})=>({id,type,x,y,level,readyAt}))}),
+      cities:this.state.cities.map(c=>c.owner===user.id||user.role==='root'?{...c,territoryCapacity:territoryCapacity(c),territoryUsed:Object.values(this.state.claims).filter(v=>v===c.id).length,capacity:this.capacity(c),workers:this.workers(c),workerDemand:this.demand(c),operatingDemand:this.operatingDemand(c),constructionBusy:this.constructionBusy(c),constructionAvailable:this.constructionAvailable(c),availableWorkers:Math.max(0,this.available(c))}:{id:c.id,owner:c.owner,ownerName:c.ownerName,name:c.name,x:c.x,y:c.y,level:c.level,population:c.population,policy:c.policy,salePrice:c.salePrice,infiltration: this.state.cities.filter(a=>a.owner===user.id).map(a=>({source:a.id,...borderStats(this,c,a)})),readyAt:c.readyAt,buildings:c.buildings.map(({id,type,x,y,level,readyAt})=>({id,type,x,y,level,readyAt}))}),
       offers:this.state.offers.filter(o=>o.status==='open'),contracts:this.state.contracts.filter(ct=>user.role==='root'||ct.sellerOwner===user.id||ct.buyerOwner===user.id),
       shipments:this.state.shipments.filter(sh=>user.role==='root'||sh.owner===user.id||this.state.cities.some(c=>c.id===sh.to&&c.owner===user.id)),events:this.state.events.filter(e=>!e.owner||e.owner===user.id||user.role==='root').slice(0,40) };
   }
