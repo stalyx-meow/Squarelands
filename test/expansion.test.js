@@ -69,3 +69,15 @@ test('transport defaults migrate once without changing custom parameters or disp
 });
 
 test('automatic bulk supply uses aircraft capacity with just one available freight worker',()=>{const g=setup(),a=city(g),b=city(g,alice,10);a.transportReserve=1;a.population=80;a.buildings=[{id:'ap',type:'airport',x:4,y:5,level:1},{id:'jobs',type:'lumber',x:4,y:4,level:50}];b.buildings=[{id:'bp',type:'airport',x:11,y:5,level:1}];a.stock.fuel=b.stock.fuel=20;a.stock.wood=600;b.stock.wood=0;assert.equal(g.transportAvailable(a),1);const sent=sendSupply(g,a,b,'wood',500);assert.equal(sent.sent,500);assert.equal(g.state.shipments.at(-1).mode,'air');assert.equal(g.state.shipments.at(-1).workers,1);});
+test('facilities use tick power demand and record precise normal-freight fallback reasons',()=>{
+ const g=setup(),a=city(g),b=city(g,alice,10);a.buildings=[{id:'a1',type:'airport',x:4,y:5,level:1}];b.buildings=[{id:'a2',type:'airport',x:11,y:5,level:1}];a.stock.fuel=b.stock.fuel=10;a.stock.power=b.stock.power=.3;
+ assert.equal(g.transportQuote(a,b,'wood',1).mode,'air');
+ a.stock.power=0;let q=g.transportQuote(a,b,'wood',1);assert.equal(q.mode,'road');assert.ok(q.fallbackReasons.air.some(r=>r.zh.includes('发货城机场：电力不足')));
+ a.stock.power=1;b.stock.fuel=0;q=g.transportQuote(a,b,'wood',1);assert.equal(q.mode,'road');assert.ok(q.fallbackReasons.air.some(r=>r.zh.includes('收货城机场：燃油不足')));
+ const sh=g.transport(a,b,'wood',1,a);assert.ok(sh.fallbackReasons.air.length);assert.ok(sh.fallbackReasons.rail.some(r=>r.en.includes('not completed')));
+ b.stock.fuel=10;a.stock.power=b.stock.power=0;for(const c of [a,b])Object.assign(c.buildings[0],{poweredAt:Date.now(),poweredLevel:1,poweredDemand:4});assert.equal(g.transportQuote(a,b,'wood',1).mode,'air');
+ a.buildings[0].poweredAt=Date.now()-10000;assert.equal(g.transportQuote(a,b,'wood',1).mode,'road');
+ a.buildings[0].poweredAt=Date.now();a.buildings[0].level=2;assert.equal(g.transportQuote(a,b,'wood',1).mode,'road');
+});
+test('rail fallback distinguishes missing track on station tile and disconnected stations',()=>{const g=setup(),a=city(g),b=city(g,alice,10);a.buildings=[{id:'s1',type:'station',x:5,y:5,level:1}];b.buildings=[{id:'s2',type:'station',x:10,y:5,level:1}];let q=g.transportQuote(a,b,'wood',1);assert.ok(q.fallbackReasons.rail.some(r=>r.en.includes('station tile has no railway')));g.state.rails['5,5']={owner:alice.id};g.state.rails['10,5']={owner:alice.id};q=g.transportQuote(a,b,'wood',1);assert.ok(q.fallbackReasons.rail.some(r=>r.en.includes('disconnected')));});
+test('actual powered operation remains usable after electricity is consumed, then stops when unpowered',()=>{const g=setup(),a=city(g),b=city(g,alice,10);a.buildings=[{id:'ap1',type:'airport',x:4,y:5,level:1}];b.buildings=[{id:'ap2',type:'airport',x:11,y:5,level:1}];a.stock.fuel=b.stock.fuel=10;a.stock.power=b.stock.power=.1;const now=Date.now();g.state.lastTick=now;g.tick(now+2000);assert.equal(a.stock.power,0);assert.equal(g.transportQuote(a,b,'wood',1).mode,'air');g.tick(now+4000);assert.equal(g.transportQuote(a,b,'wood',1).mode,'road');});

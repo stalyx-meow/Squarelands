@@ -49,7 +49,7 @@
 
 ## 下载与选择版本
 
-> 当前游戏代码版本为 **1.3.2**（服务端基础应用 1.2.1，客户端 1.2.0）。下载时请核对版本号；旧版 1.1 不含本次新增玩法。旧截图展示 1.1 界面。
+> 当前游戏代码版本为 **1.3.3**（服务端基础应用 1.2.1，客户端 1.2.0）。下载时请核对版本号；旧版 1.1 不含本次新增玩法。旧截图展示 1.1 界面。
 
 首次使用请下载 [1.2.1 服务端基础应用](https://github.com/stalyx-meow/Squarelands/releases/tag/v1.2.1) 和 [1.2.0 客户端](https://github.com/stalyx-meow/Squarelands/releases/tag/v1.2.0)，再安装 [最新轻量代码包](https://github.com/stalyx-meow/Squarelands/releases/latest)。**所有包均内置运行时，不需要安装 Node.js、npm 或数据库。**
 

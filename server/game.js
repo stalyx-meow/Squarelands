@@ -83,11 +83,12 @@ export class Game {
   route(from,to){return findRoute(this,from,to);}
   transportQuote(from,to,resource,amount,budget=Infinity,workerBudget=Infinity){
     if(from.owner!==to.owner&&(allianceOf(this.state,from.owner)?.external[to.owner]?.embargo||allianceOf(this.state,to.owner)?.external[from.owner]?.embargo))fail('联盟政策禁止与该玩家运输或贸易');
-    const options=fastRoutes(this,from,to);try{const r=this.route(from,to);options.push({...r,mode:'road',seconds:this.config.economy.freightBaseSeconds+r.distance*this.config.economy.freightSeconds,feeMultiplier:1});}catch{if(!options.length)fail('运输路线被禁运封锁');}
+    const diagnostics={rail:[],air:[]},options=fastRoutes(this,from,to,diagnostics);try{const r=this.route(from,to);options.push({...r,mode:'road',seconds:this.config.economy.freightBaseSeconds+r.distance*this.config.economy.freightSeconds,feeMultiplier:1});}catch{if(!options.length)fail('运输路线被禁运封锁');}
     for(const r of options){const fast=r.mode!=='road',t=this.config.transport;r.unitsPerWorker=this.config.economy.unitsPerWorker*(fast?t[`${r.mode}LoadMultiplier`]:1);r.workers=Math.max(1,Math.ceil(amount/r.unitsPerWorker));
       r.fee=Math.ceil(r.distance*this.config.economy.freightDistance*r.feeMultiplier+amount*this.config.economy.freightAmount*(fast?t.fastCargoFeeMultiplier:1)+(fast?t[`${r.mode}BaseFee`]:0))+Object.values(r.tolls).reduce((n,rate)=>n+Math.ceil(amount*(this.config.prices[resource]??1)*rate/100),0);
     }
-    options.sort((a,b)=>(a.mode==='road')-(b.mode==='road')||a.seconds-b.seconds||a.fee-b.fee||a.workers-b.workers);return options.find(r=>r.fee<=budget&&r.workers<=workerBudget)||options[0];
+    options.sort((a,b)=>(a.mode==='road')-(b.mode==='road')||a.seconds-b.seconds||a.fee-b.fee||a.workers-b.workers);const selected=options.find(r=>r.fee<=budget&&r.workers<=workerBudget)||options[0];
+    if(selected.mode==='road'){for(const r of options.filter(r=>r.mode!=='road')){if(r.fee>budget)diagnostics[r.mode].push({zh:'运费不足',en:'Insufficient freight funds'});if(r.workers>workerBudget)diagnostics[r.mode].push({zh:'运输工人不足',en:'Insufficient freight workers'});}selected.fallbackReasons=diagnostics;}return selected;
   }
 
   transport(from,to,resource,amount,payer,now=Date.now(),preflightQuote=null) {
@@ -99,7 +100,7 @@ export class Game {
     this.pay(payer,{money:quote.fee});if(quote.fuel){this.pay(from,{fuel:quote.fuel});this.pay(to,{fuel:quote.fuel});}
     for(const [cityId,rate] of Object.entries(quote.tolls)){const c=this.state.cities.find(c=>c.id===cityId);if(c)this.credit(c,'money',Math.ceil(amount*(this.config.prices[resource]??1)*rate/100));}
     payer.transportWorkers=(payer.transportWorkers||0)+workers;
-    const shipment={id:id(),from:from.id,to:to.id,owner:payer.owner,payer:payer.id,resource,amount,workers,fee:quote.fee,mode:quote.mode,path:quote.path,departAt:now,arriveAt:now+Math.max(1,Math.ceil(quote.seconds))*1000,status:'transit'};this.state.shipments.push(shipment);return shipment;
+    const shipment={id:id(),from:from.id,to:to.id,owner:payer.owner,payer:payer.id,resource,amount,workers,fee:quote.fee,mode:quote.mode,fallbackReasons:quote.fallbackReasons,path:quote.path,departAt:now,arriveAt:now+Math.max(1,Math.ceil(quote.seconds))*1000,status:'transit'};this.state.shipments.push(shipment);return shipment;
   }
   amount(n) { if(!Number.isFinite(n)||n<1||n>this.config.trade.maxAmount||!Number.isInteger(n)) fail('数量须为服务器范围内的正整数'); }
   action(user,action,p={}) {
@@ -179,6 +180,7 @@ export class Game {
         for(const [k,v]of Object.entries(input))if(v*scale*dt>0)scale=Math.min(scale,(c.stock[k]||0)/(v*dt));
         for(const [k,v]of Object.entries(input))c.stock[k]=round(Math.max(0,(c.stock[k]||0)-v*scale*dt));
         for(const [k,v]of Object.entries(def.output))this.credit(c,k,v*scale*dt);
+        const powerDemand=((def.power||0)+(def.input?.power||0))*b.level;if(powerDemand>0&&scale>0&&dt>0){b.poweredAt=now;b.poweredLevel=b.level;b.poweredDemand=powerDemand;}else delete b.poweredAt;
         const operation=b.level?scale/b.level:0;comfort+=(def.comfort||0)*b.level*Math.min(1,operation);education+=(def.education||0)*b.level*Math.min(1,operation);housing+=(def.housing||0)*b.level;
       }
       for(const [k,rate]of Object.entries(this.config.needs)){const need=c.population*rate*dt,available=c.stock[k]||0;if(need>0&&available<need)comfort-=this.config.economy.shortagePenalty*(1-available/need);c.stock[k]=round(Math.max(0,available-need));}
