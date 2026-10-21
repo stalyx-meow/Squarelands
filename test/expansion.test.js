@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {Game,createState} from '../server/game.js';import {tickFeatures,supplyLimit,saleLimit} from '../server/features.js';import {editTile} from '../server/admin-tools.js';import {alliancePrice} from '../shared/politics.js';import {applySettings} from '../server/settings.js';
+import {Game,createState} from '../server/game.js';import {tickFeatures,supplyLimit,saleLimit,sendSupply} from '../server/features.js';import {editTile} from '../server/admin-tools.js';import {alliancePrice} from '../shared/politics.js';import {applySettings} from '../server/settings.js';
 const alice={id:'a',username:'Alice',role:'player'},bob={id:'b',username:'Bob',role:'player'},root={id:'root',username:'root',role:'root'};
 function setup(){const g=new Game(createState(100));for(const t of g.state.world.tiles){t.terrain='plain';t.deposit=null;}g.tick();return g;}
 function city(g,user=alice,x=5){const source=g.state.cities.find(c=>c.owner===user.id);const c=g.city(user,g.found(user,{x,y:5,name:`City ${x}`,sourceCityId:source?.id}));c.readyAt=null;delete c.foundingSource;if(source)source.transportWorkers=0;c.stock.money=10000;c.autoSupply=false;return c;}
@@ -46,3 +46,26 @@ test('alliance applications, invitations, removal, cancellation and role protect
  act(g,alice,'allianceKick',{playerId:charlie.id});assert.ok(!g.state.alliances[0].admins.includes(charlie.id));act(g,bob,'allianceLeave');assert.deepEqual(g.state.alliances[0].members,[alice.id]);
  act(g,alice,'allianceInvite',{playerId:dave.id,validPlayer:true});act(g,alice,'allianceRevokeInvite',{playerId:dave.id});assert.throws(()=>act(g,dave,'allianceAcceptInvite',{allianceId:id}),/邀请/);
 });
+test('water rail, short rail / long air crossover, discounted crews and automatic bulk freight',()=>{
+ const g=setup(),a=city(g),b=city(g,alice,10);
+ a.population=b.population=1000;a.transportReserve=20;
+ a.buildings=[{id:'s1',type:'station',x:5,y:5,level:1},{id:'a1',type:'airport',x:4,y:5,level:1}];b.buildings=[{id:'s2',type:'station',x:10,y:5,level:1},{id:'a2',type:'airport',x:11,y:5,level:1}];
+ for(let x=5;x<=10;x++){g.state.claims[`${x},5`]=x<8?a.id:b.id;g.tile(x,5).terrain='ocean';act(g,alice,'rail',{cityId:x<8?a.id:b.id,x,y:5});}
+ a.stock.fuel=b.stock.fuel=100;
+ let q=g.transportQuote(a,b,'wood',1000);assert.equal(q.mode,'rail');assert.equal(q.workers,4);assert.equal(q.fee,4);assert.ok(q.seconds<3);
+ const air=g.transportQuote(a,b,'wood',1000,Infinity,2);assert.equal(air.mode,'air');assert.equal(air.workers,2);
+ const saved=structuredClone(g.state.rails);g.state.rails={};a.stock.fuel=0;const road=g.transportQuote(a,b,'wood',1000);assert.equal(road.mode,'road');assert.equal(road.workers,20);assert.ok(road.fee>q.fee*5);assert.ok(road.seconds>q.seconds*5);
+ g.state.rails=saved;a.stock.fuel=100;b.x=75;b.y=5;b.buildings[0].x=75;b.buildings[1].x=76;
+ for(let x=11;x<=75;x++)g.state.rails[`${x},5`]={owner:alice.id};
+ q=g.transportQuote(a,b,'wood',1000);assert.equal(q.mode,'air');assert.equal(q.workers,2);assert.equal(q.fee,6);assert.ok(q.seconds<9);
+ a.stock.fuel=0;const rail=g.transportQuote(a,b,'wood',1000);assert.equal(rail.mode,'rail');assert.ok(rail.fee>q.fee);assert.ok(rail.seconds>q.seconds);
+ // Modern modes remain preferred even if a custom road configuration is faster.
+ g.config.economy.freightBaseSeconds=0;g.config.economy.freightSeconds=0;assert.equal(g.transportQuote(a,b,'wood',100).mode,'rail');
+});
+test('transport defaults migrate once without changing custom parameters or dispatched shipments',()=>{
+ const g=setup();g.state.transportRulesVersion=undefined;g.state.settings.transport={railBaseSeconds:3,railSeconds:.25,railFeeMultiplier:.8,airBaseSeconds:2,airSeconds:.1,airFeeMultiplier:3};g.state.shipments=[{id:'old',workers:9,fee:20,arriveAt:123,status:'arrived'}];
+ const migrated=new Game(structuredClone(g.state));assert.equal(migrated.config.transport.railSeconds,.12);assert.equal(migrated.config.transport.airFeeMultiplier,3);assert.equal(migrated.state.shipments[0].workers,9);
+ migrated.state.settings.transport.railSeconds=.25;assert.equal(new Game(structuredClone(migrated.state)).config.transport.railSeconds,.25);
+});
+
+test('automatic bulk supply uses aircraft capacity with just one available freight worker',()=>{const g=setup(),a=city(g),b=city(g,alice,10);a.transportReserve=1;a.population=80;a.buildings=[{id:'ap',type:'airport',x:4,y:5,level:1},{id:'jobs',type:'lumber',x:4,y:4,level:50}];b.buildings=[{id:'bp',type:'airport',x:11,y:5,level:1}];a.stock.fuel=b.stock.fuel=20;a.stock.wood=600;b.stock.wood=0;assert.equal(g.transportAvailable(a),1);const sent=sendSupply(g,a,b,'wood',500);assert.equal(sent.sent,500);assert.equal(g.state.shipments.at(-1).mode,'air');assert.equal(g.state.shipments.at(-1).workers,1);});

@@ -8,7 +8,6 @@ export function railAction(g,user,action,p){
  const k=key(p.x,p.y);
  if(action==='removeRail'){delete g.state.rails[k];return true;}
  if(g.state.rails[k])throw new Error('该格已有铁路');
- if(['ocean','lake','river'].includes(g.tile(p.x,p.y).terrain))throw new Error('铁路不能铺设于水域');
  g.pay(c,g.config.transport.railCost);g.state.rails[k]={owner:user.id};return true;
 }
 function hubs(g,c,type){return c.buildings.filter(b=>b.type===type&&!b.readyAt).filter(b=>{const d=g.definition(b);return c.efficiency>0&&(c.stock.power||0)>=((d.power||0)+(d.input?.power||0))*b.level&&(type!=='airport'||(c.stock.fuel||0)>=g.config.transport.airFuel);});}

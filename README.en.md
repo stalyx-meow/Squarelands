@@ -2,7 +2,7 @@
 
 [中文](readme.md) · [Gameplay and balance](GAMEPLAY.md) · [Development](DEVELOPMENT.md) · [Downloads](https://github.com/stalyx-meow/Squarelands/releases)
 
-A multiplayer city-building and trading game with a standalone Electron client and server. Players enter the server IP or domain to join a persistent shared world. The current game code version is **1.3.1** (server launcher 1.2.1). Check the version when downloading; 1.1.0 packages do not include these new features.
+A multiplayer city-building and trading game with a standalone Electron client and server. Players enter the server IP or domain to join a persistent shared world. The current game code version is **1.3.2** (server launcher 1.2.1). Check the version when downloading; 1.1.0 packages do not include these new features.
 
 ## 1.3 update
 
@@ -27,7 +27,7 @@ Full applications are rebuilt only for initial installation or native launcher/E
 - City sales, bordering-tile transfers, railways, airports and alliances.
 - Broadcasts and private messages.
 - Chinese and English UI and an in-game handbook populated from current server settings.
-- Root administration with 434 editable numeric fields, validation, atomic persistence and reset to defaults.
+- Root administration with 439 editable numeric fields, validation, atomic persistence and reset to defaults.
 
 ## Play
 

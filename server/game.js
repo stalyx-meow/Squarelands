@@ -81,15 +81,18 @@ export class Game {
   }
   demolish(user,{cityId,buildingId}) { const c=this.city(user,cityId); const b=c.buildings.find(b=>b.id===buildingId); if(!b) fail('建筑不存在'); for(const [k,v] of Object.entries(this.buildingCost(b.type,b.level))) this.credit(c,k,v*this.config.economy.demolishRefund); c.buildings=c.buildings.filter(v=>v.id!==b.id); this.log(`${c.name}：拆除${this.config.buildings[b.type].name}，返还 30% 材料`,user.id); }
   route(from,to){return findRoute(this,from,to);}
-  transportQuote(from,to,resource,amount,budget=Infinity){
+  transportQuote(from,to,resource,amount,budget=Infinity,workerBudget=Infinity){
     if(from.owner!==to.owner&&(allianceOf(this.state,from.owner)?.external[to.owner]?.embargo||allianceOf(this.state,to.owner)?.external[from.owner]?.embargo))fail('联盟政策禁止与该玩家运输或贸易');
     const options=fastRoutes(this,from,to);try{const r=this.route(from,to);options.push({...r,mode:'road',seconds:this.config.economy.freightBaseSeconds+r.distance*this.config.economy.freightSeconds,feeMultiplier:1});}catch{if(!options.length)fail('运输路线被禁运封锁');}
-    for(const r of options)r.fee=Math.ceil((r.distance*this.config.economy.freightDistance+amount*this.config.economy.freightAmount)*r.feeMultiplier)+Object.values(r.tolls).reduce((n,rate)=>n+Math.ceil(amount*(this.config.prices[resource]??1)*rate/100),0);
-    options.sort((a,b)=>a.seconds-b.seconds);return options.find(r=>r.fee<=budget)||options[0];
+    for(const r of options){const fast=r.mode!=='road',t=this.config.transport;r.unitsPerWorker=this.config.economy.unitsPerWorker*(fast?t[`${r.mode}LoadMultiplier`]:1);r.workers=Math.max(1,Math.ceil(amount/r.unitsPerWorker));
+      r.fee=Math.ceil(r.distance*this.config.economy.freightDistance*r.feeMultiplier+amount*this.config.economy.freightAmount*(fast?t.fastCargoFeeMultiplier:1)+(fast?t[`${r.mode}BaseFee`]:0))+Object.values(r.tolls).reduce((n,rate)=>n+Math.ceil(amount*(this.config.prices[resource]??1)*rate/100),0);
+    }
+    options.sort((a,b)=>(a.mode==='road')-(b.mode==='road')||a.seconds-b.seconds||a.fee-b.fee||a.workers-b.workers);return options.find(r=>r.fee<=budget&&r.workers<=workerBudget)||options[0];
   }
+
   transport(from,to,resource,amount,payer,now=Date.now(),preflightQuote=null) {
     if(from.id===to.id)fail('请选择另一座城市');this.ready(from);this.ready(to);
-    const quote=preflightQuote||this.transportQuote(from,to,resource,amount,payer.stock.money),workers=Math.max(1,Math.ceil(amount/this.config.economy.unitsPerWorker));
+    const quote=preflightQuote||this.transportQuote(from,to,resource,amount,payer.stock.money,this.transportAvailable(payer)),workers=quote.workers;
     if(this.transportAvailable(payer)<workers)fail(`运输需要 ${workers} 名可用运输工人`);
     // Preflight fuel and the fee before any mutation (also used by scheduled dispatch).
     if(quote.fuel&&(from.stock.fuel<quote.fuel||to.stock.fuel<quote.fuel))fail('机场燃油不足');

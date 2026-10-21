@@ -68,10 +68,13 @@ function donorReserve(game,c,resource){return Math.max(supplyLimit(game,c,resour
 export function sendSupply(game,from,to,resource,requested,now=Date.now()){
   const inbound=inboundAmount(game,to,resource);
   const room=resource==='money'?Infinity:Math.max(0,game.capacity(to)-(to.stock[resource]||0)-inbound);
-  const amount=Math.min(requested,game.config.trade.maxAmount,Math.floor((from.stock[resource]||0)-donorReserve(game,from,resource)),Math.floor(room),Math.max(0,game.transportAvailable(from))*game.config.economy.unitsPerWorker);
-  const whole=Math.floor(amount);if(whole<1)return {sent:0,reason:'stock-workers-capacity'};
+  const amount=Math.min(requested,game.config.trade.maxAmount,Math.floor((from.stock[resource]||0)-donorReserve(game,from,resource)),Math.floor(room),Math.max(0,game.transportAvailable(from))*game.config.economy.unitsPerWorker*Math.max(1,game.config.transport.railLoadMultiplier,game.config.transport.airLoadMultiplier));
+  let whole=Math.floor(amount);if(whole<1)return {sent:0,reason:'stock-workers-capacity'};
   try{
-    const quote=game.transportQuote(from,to,resource,whole,from.stock.money-(resource==='money'?whole:0)-(supplyLimit(game,from,'money')||0)),fee=quote.fee;
+    const budget=()=>from.stock.money-(resource==='money'?whole:0)-(supplyLimit(game,from,'money')||0),workers=game.transportAvailable(from);
+    let quote=game.transportQuote(from,to,resource,whole,budget(),workers);
+    if(quote.workers>workers){whole=Math.min(whole,Math.floor(workers*quote.unitsPerWorker));if(whole<1)return {sent:0,reason:'workers'};quote=game.transportQuote(from,to,resource,whole,budget(),workers);}
+    const fee=quote.fee;
     if(from.stock.money<fee+(resource==='money'?whole:0)+(supplyLimit(game,from,'money')||0))return {sent:0,reason:'funds'};
     const shipment=game.transport(from,to,resource,whole,from,now,quote);game.pay(from,{[resource]:whole});return {sent:whole,shipment:shipment.id};
   }catch{return {sent:0,reason:'route-workers'};}

@@ -7,7 +7,7 @@ export const DEFAULT_SETTINGS={
   needs:{food:.04,goods:.04,vegetables:.035,clothing:.025,meatProducts:.012,water:.09,power:.04},
   territory:{unlockMoney:30,unlockWood:5,unlockStone:5,margin:4,expansion:16,maxTiles:262144},
   automation:{supplyRatio:.05,saleRatio:.95},
-  transport:{railCost:{money:20,iron:2,stone:3},railBaseSeconds:3,railSeconds:.25,railFeeMultiplier:.8,airBaseSeconds:2,airSeconds:.1,airFeeMultiplier:2,airFuel:2}
+  transport:{railCost:{money:20,iron:2,stone:3},railBaseSeconds:2,railSeconds:.12,railFeeMultiplier:.2,railBaseFee:0,railLoadMultiplier:5,airBaseSeconds:7,airSeconds:.02,airFeeMultiplier:.04,airBaseFee:2,airLoadMultiplier:10,fastCargoFeeMultiplier:.1,airFuel:2}
 };
 function range(path){
   const key=path.at(-1),group=path[0];
@@ -19,13 +19,14 @@ function range(path){
   if(key==='maxCityLevel'||key==='maxBuildingLevel')return [1,10,true];if(key==='maxCities')return [1,50,true];
   if(['tickSeconds','cycleSeconds'].includes(key))return [1,300,true];
   if(['shopSeconds','cooldownSeconds'].includes(key))return [10,86400,true];
+  if(['railLoadMultiplier','airLoadMultiplier'].includes(key))return [1,100,true];
   if(['unitsPerWorker'].includes(key))return [1,10000,true];
   if(['minPopulation'].includes(key))return [20,1000,true];
   if(['progressPerCycle'].includes(key))return [.1,100,false];
   if(group==='prices')return [.01,100000,false];
   if(key==='time'||key==='foundingSeconds')return [1,86400,true];
   if(['workers','constructionWorkers','defaultConstructionReserve','defaultTransportReserve','civilWorkers','minContact','housing','storage','baseStorage','shopStock'].includes(key))return [0,100000,true];
-  if(['railFeeMultiplier','airFeeMultiplier'].includes(key))return [.1,10,false];
+  if(['railFeeMultiplier','airFeeMultiplier'].includes(key))return [0,10,false];
   if(['railSeconds','airSeconds','railBaseSeconds','airBaseSeconds','freightBaseSeconds','freightSeconds'].includes(key))return [0,3600,false];
   if(['comfortGrowth','comfortDecline','maxTariff'].includes(key))return [0,100,false];
   if(key==='buildingCostMultiplier')return [1,5,false];

@@ -6,6 +6,7 @@ export function migrateState(state) {
   const legacy=!state.schemaVersion||state.schemaVersion<2;
   state.world.minX??=0;state.world.minY??=0;state.world.revision??=1;
   state.messages??=[];state.pendingActions??=[];state.infiltrations??=[];state.rails??={};state.alliances??=[];state.profiles??={};
+  if(!state.transportRulesVersion){const t=state.settings?.transport;if(t){for(const [key,old,value] of [['railBaseSeconds',3,2],['railSeconds',.25,.12],['railFeeMultiplier',.8,.2],['airBaseSeconds',2,7],['airSeconds',.1,.02],['airFeeMultiplier',2,.04]])if(t[key]===old)t[key]=value;}state.transportRulesVersion=1;}
   // Removed feature: release assigned workers exactly once, preserve paid historical costs.
   for(const i of state.infiltrations)if(i.status==='active'){const c=state.cities.find(c=>c.id===i.source);if(c)c.transportWorkers=Math.max(0,(c.transportWorkers||0)-(i.workers??4));}
   delete state.infiltrations;if(state.settings)delete state.settings.infiltration;
