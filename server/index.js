@@ -74,7 +74,7 @@ const server=http.createServer(async(req,res)=>{
       if(url.pathname==='/api/logout'){db.prepare('DELETE FROM sessions WHERE token=?').run(token);res.setHeader('Set-Cookie','session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return json(200,{ok:true});}
       const p=await body(req),snapshot=structuredClone(game.state);
       if(p.action==='message'&&p.toUser){p.recipient=db.prepare('SELECT id,username FROM users WHERE id=? AND banned=0').get(p.toUser);if(!p.recipient)throw new Error('目标玩家不存在');}else delete p.recipient;
-      if(p.action==='alliancePolicy'&&p.playerId)p.validPlayer=!!db.prepare('SELECT id FROM users WHERE id=? AND banned=0').get(p.playerId);
+      if(['alliancePolicy','allianceInvite'].includes(p.action)&&p.playerId)p.validPlayer=!!db.prepare('SELECT id FROM users WHERE id=? AND banned=0').get(p.playerId);
       if(p.action==='policy'&&p.playerId)p.policyPlayer=!!db.prepare('SELECT id FROM users WHERE id=? AND banned=0').get(p.playerId);
       if(!['/api/action','/api/admin'].includes(url.pathname))return json(404,{error:'接口不存在'});
       db.exec('BEGIN IMMEDIATE');

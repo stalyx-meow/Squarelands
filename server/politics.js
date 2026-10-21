@@ -10,7 +10,12 @@ export function politicsAction(g,user,action,p){
   if(g.state.alliances.some(a=>a.name.toLowerCase()===p.name.trim().toLowerCase()))fail('联盟名称已存在');
   g.state.alliances.push({id:randomUUID(),name:p.name.trim(),founder:user.id,admins:[],members:[user.id],internal:{tariff:0,discount:10},external:{}});return true;
  }
- if(action==='allianceJoin'){if(own)fail('只能加入一个联盟');const a=g.state.alliances.find(a=>a.id===p.allianceId);if(!a)fail('联盟不存在');if(a.members.length>=100)fail('联盟人数已满');a.members.push(user.id);delete a.external[user.id];return true;}
+ const target=g.state.alliances.find(a=>a.id===p.allianceId);
+ const join=a=>{if(own)fail('只能加入一个联盟');if(!a)fail('联盟不存在');if(a.members.length>=100)fail('联盟人数已满');a.members.push(user.id);delete a.external[user.id];for(const other of g.state.alliances){other.applications=(other.applications||[]).filter(id=>id!==user.id);other.invitations=(other.invitations||[]).filter(id=>id!==user.id);}};
+ if(action==='allianceJoin'||action==='allianceApply'){if(own)fail('只能加入一个联盟');if(!target)fail('联盟不存在');target.applications=[...new Set([...(target.applications||[]),user.id])];return true;}
+ if(action==='allianceCancelApplication'){if(!target)fail('联盟不存在');target.applications=(target.applications||[]).filter(id=>id!==user.id);return true;}
+ if(action==='allianceAcceptInvite'){if(!target?.invitations?.includes(user.id))fail('邀请不存在或已撤回');join(target);return true;}
+ if(action==='allianceDeclineInvite'){if(!target)fail('联盟不存在');target.invitations=(target.invitations||[]).filter(id=>id!==user.id);return true;}
  if(!own)fail('请先加入联盟');
  if(action==='allianceLeave'){if(own.founder===user.id)fail('创建者需先转让创建者身份或解散联盟');own.members=own.members.filter(id=>id!==user.id);own.admins=own.admins.filter(id=>id!==user.id);return true;}
  if(action==='allianceDisband'){if(own.founder!==user.id)fail('只有创建者可以解散联盟');g.state.alliances=g.state.alliances.filter(a=>a.id!==own.id);return true;}
@@ -20,6 +25,14 @@ export function politicsAction(g,user,action,p){
   else own.admins=p.value?[...new Set([...own.admins,p.playerId])]:own.admins.filter(id=>id!==p.playerId);return true;
  }
  if(![own.founder,...own.admins].includes(user.id))fail('需要联盟创建者或管理员权限');
+ if(action==='allianceInvite'){if(!p.validPlayer)fail('目标玩家不存在');if(allianceOf(g.state,p.playerId))fail('目标玩家已有联盟');own.invitations=[...new Set([...(own.invitations||[]),p.playerId])];return true;}
+ if(action==='allianceRevokeInvite'){own.invitations=(own.invitations||[]).filter(id=>id!==p.playerId);return true;}
+ if(action==='allianceReview'){
+  if(!own.applications?.includes(p.playerId))fail('申请不存在');
+  if(p.accept){if(allianceOf(g.state,p.playerId))fail('目标玩家已有联盟');if(own.members.length>=100)fail('联盟人数已满');own.members.push(p.playerId);delete own.external[p.playerId];for(const a of g.state.alliances){a.applications=(a.applications||[]).filter(id=>id!==p.playerId);a.invitations=(a.invitations||[]).filter(id=>id!==p.playerId);}}
+  else own.applications=own.applications.filter(id=>id!==p.playerId);return true;
+ }
+ if(action==='allianceKick'){if(!own.members.includes(p.playerId)||p.playerId===user.id||p.playerId===own.founder)fail('不能移除此成员');if(own.admins.includes(p.playerId)&&own.founder!==user.id)fail('只有创建者可以移出管理员');own.members=own.members.filter(id=>id!==p.playerId);own.admins=own.admins.filter(id=>id!==p.playerId);return true;}
  if(action==='alliancePolicy'){
   if(!Number.isFinite(p.tariff)||p.tariff<0||p.tariff>g.config.trade.maxTariff)fail('税率超出服务器允许范围');
   if(p.playerId){if(own.members.includes(p.playerId))fail('联盟成员使用内部政策');if(!p.validPlayer)fail('目标玩家不存在');if(p.remove)delete own.external[p.playerId];else own.external[p.playerId]={embargo:!!p.embargo,tariff:p.tariff};}

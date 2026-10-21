@@ -2,11 +2,11 @@
 
 [中文](readme.md) · [Gameplay and balance](GAMEPLAY.md) · [Development](DEVELOPMENT.md) · [Downloads](https://github.com/stalyx-meow/Squarelands/releases)
 
-A multiplayer city-building and trading game with a standalone Electron client and server. Players enter the server IP or domain to join a persistent shared world. The current game code version is **1.3.0** (server launcher 1.2.1). Check the version when downloading; 1.1.0 packages do not include these new features.
+A multiplayer city-building and trading game with a standalone Electron client and server. Players enter the server IP or domain to join a persistent shared world. The current game code version is **1.3.1** (server launcher 1.2.1). Check the version when downloading; 1.1.0 packages do not include these new features.
 
 ## 1.3 update
 
-Unified restocking defaults to 5% of capacity and surplus sales retain 95%. Builder/freight pools reserve four workers each. Stations use a separate railway layer; airports enable fast air freight with fuel at both endpoints. Alliances support administrators, internal discounts/tariffs, external embargoes and alliance chat. Customize territory colors, transfer bordering owned tiles or abandon cleared tiles. Infiltration is removed. Root can edit accounts/passwords, tile ownership/terrain and individual building attributes. Shortage shortcuts, per-version release notes and mobile layouts are included. Shipments are visible only to participants, including in root's logistics list.
+Unified restocking defaults to 5% of capacity and surplus sales retain 95%. Builder/freight pools reserve four workers each. Stations use a separate railway layer; airports enable fast air freight with fuel at both endpoints. Alliances support invitations, membership applications and approval, member removal, voluntary departure, administrators, internal discounts/tariffs, external embargoes and alliance chat. Customize territory colors, transfer bordering owned tiles or abandon cleared tiles. Infiltration is removed. Root can edit accounts/passwords, tile ownership/terrain and individual building attributes. Shortage shortcuts, per-version release notes and mobile layouts are included. Shipments are visible only to participants, including in root's logistics list.
 
 Stop and back up before installing the universal 1.3 code bundle into the 1.2.1 server launcher. Existing clients reconnect or refresh. Reverting pre-1.3 code requires restoring the pre-update save as well.
 

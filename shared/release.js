@@ -1,5 +1,2 @@
-export const VERSION='1.3.0';
-export const RELEASE_NOTES={
- zh:['补货与资源不足调配合并，默认下限为仓储的 5%；自动出售默认保留 95%。','建筑工人与运输工人分别预留，运输默认预留 4 人。','机场、火车站及独立铁路图层；自动选择最快可用运输方式。','联盟创建、加入、管理员、内外政策、内部交易优惠与联盟聊天。','玩家自定义颜色；交界地块转让与放弃；移除边境渗透。','root 地块和建筑属性编辑、账号密码管理；缺货时快速调拨或从官方市场购买。','移动端城市选择、地图操作与表单布局优化；私人运输记录仅对参与方可见。'],
- en:['Unified restocking defaults to 5% of capacity; surplus sales keep 95% by default.','Separate builder and freight reserves; default freight reserve is four workers.','Airports, stations and a separate railway layer; fastest eligible transport is selected.','Alliances, administrators, internal/external policies, trade discounts and alliance chat.','Custom player colors, border-tile transfer and abandonment; infiltration removed.','Root tile/building editor and account management; quick supply and official-market shortage actions.','Mobile city selector, map and form improvements; shipments visible only to participants.']
-};
+export const VERSION='1.3.1';
+export const RELEASE_NOTES={zh:['联盟加入改为申请审批；可取消申请，管理员可批准或拒绝。','创建者和管理员可以邀请玩家，玩家可接受或拒绝，邀请可撤回。','新增移出成员；创建者不能被移出，管理员不能移出其他管理员。','保留主动退出；创建者需要先转让身份或解散联盟。'],en:['Alliance membership now requires application approval; applicants can cancel and managers can approve or reject.','Founders and admins can invite players, who can accept or decline; invitations can be revoked.','Managers can remove members; founders are protected and only founders can remove admins.','Members can leave; founders must transfer leadership or disband first.']};
