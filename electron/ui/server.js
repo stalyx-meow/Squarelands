@@ -1,7 +1,7 @@
 const $ = selector => document.querySelector(selector);
 let state, initialized = false, hiddenPassword = false, toastTimer;
 function toast(text, error = false) { clearTimeout(toastTimer); $('#toast').textContent = text; $('#toast').className = `toast${error ? ' error' : ''}`; $('#toast').hidden = false; toastTimer = setTimeout(() => { $('#toast').hidden = true; }, 4500); }
-function config() { return { host: $('#host').value, port: Number($('#port').value), autoStart: $('#auto-start').checked, secureCookie: $('#secure-cookie').checked }; }
+function config() { return { host: $('#host').value, port: Number($('#port').value), tcpPort:Number($('#tcp-port').value), autoStart: $('#auto-start').checked, secureCookie: $('#secure-cookie').checked }; }
 function render(value) {
   state = value;
   const names = { starting: '正在启动', running: '世界运行中', stopping: '正在保存并停止', stopped: '已停止', error: '启动 / 运行异常' };
@@ -11,9 +11,9 @@ function render(value) {
   $('#install-update').disabled = busy; $('#rollback-update').disabled = busy || !state.canRollback;
   $('#start').disabled = busy; $('#stop').disabled = !['running', 'starting'].includes(state.status);
   $('#save-config').disabled = busy; $('#backup').disabled = busy; $('#open-world').disabled = state.status !== 'running';
-  for (const id of ['host', 'port', 'auto-start', 'secure-cookie']) $(`#${id}`).disabled = busy;
+  for (const id of ['host', 'port', 'tcp-port', 'auto-start', 'secure-cookie']) $(`#${id}`).disabled = busy;
   if (!initialized || busy) {
-    $('#host').value = state.config.host; $('#port').value = state.config.port;
+    $('#host').value = state.config.host; $('#port').value = state.config.port; $('#tcp-port').value = state.config.tcpPort;
     $('#auto-start').checked = state.config.autoStart; $('#secure-cookie').checked = state.config.secureCookie; initialized = true;
   }
   $('#data-path').textContent = state.dataDir;

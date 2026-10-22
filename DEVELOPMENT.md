@@ -1,3 +1,9 @@
+# 2.0 原生客户端与 TCP
+
+主客户端已迁移到 `godot/`（Godot 4.7），见 [原生开发说明](godot/README.md) 和 [TCP 协议](docs/TCP_PROTOCOL.md)。`npm run desktop` 启动 Godot，`desktop:web` 保留旧 Electron；`pack:client`/`pack:godot` 导出原生包。`server/tcp.js` 提供长度分帧、连接会话和推送，调用与兼容 HTTP 相同的内存事务分发器，不使用 HTTP 网络代理。服务端代码更新仍沿用原有通用小包，不包含 Godot 引擎。
+
+以下为服务端与旧客户端架构说明，涉及 Electron 客户端的部分仅适用于兼容入口。
+
 # 开发、部署与发布
 
 日常游玩和图形控制台操作见 [README](readme.md)，经济参数与公式见 [GAMEPLAY](GAMEPLAY.md)。本文件面向开发者与命令行服主。

@@ -1,5 +1,6 @@
 import {VERSION} from '../shared/release.js';
 import http from 'node:http';
+import {createGameTcpServer} from './tcp.js';
 import { DatabaseSync } from 'node:sqlite';
 import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { mkdirSync, readFileSync, existsSync, statSync, writeFileSync } from 'node:fs';
@@ -49,7 +50,7 @@ const admin=(user,p)=>{
   else throw new Error('未知管理操作');
 };
 const body=readBody;
-const server=http.createServer(async(req,res)=>{
+const dispatch=async(req,res)=>{
   const json=(status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(data));};
   try{
     const url=new URL(req.url,'http://localhost');
@@ -90,14 +91,17 @@ const server=http.createServer(async(req,res)=>{
     const types={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml'};
     res.writeHead(200,{'Content-Type':types[extname(file)]||'application/octet-stream','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'"});res.end(req.method==='HEAD'?undefined:readFileSync(file));
   }catch(error){if(error.retryAfter)res.setHeader('Retry-After',String(error.retryAfter));json(error.status||400,{error:error.message||'请求失败',...(error.supply?{shortage:error.supply}:{})});}
-});
+};
+const server=http.createServer(dispatch);
+const tcp=createGameTcpServer({dispatch,version:VERSION});
 const port=Number(process.env.PORT||3210),host=process.env.HOST||'127.0.0.1';
+tcp.on('error',error=>{console.error(`TCP 启动失败：${error.message}`);shutdown();});
 server.on('error',error=>{clearInterval(timer);clearInterval(cleanup);db.close();process.stderr.write(`服务端启动失败：${error.message}\n`,()=>process.exit(1));});
-server.listen(port,host,()=>{const url=`http://${host}:${server.address().port}`;console.log(`方域服务端已启动 ${url}`);process.send?.({type:'ready',url});});
+server.listen(port,host,()=>{const url=`http://${host}:${server.address().port}`;console.log(`方域服务端已启动 ${url}`);const tcpPort=Number(process.env.TCP_PORT??(port===0?0:port+1));tcp.listen(tcpPort,process.env.TCP_HOST||host,()=>{const tcpUrl=`${process.env.TCP_TLS_CERT?'tls':'tcp'}://${host}:${tcp.address().port}`;console.log(`Godot TCP ${tcpUrl}`);process.send?.({type:'ready',url,tcpUrl,tcpPort:tcp.address().port});});});
 const timer=setInterval(()=>{if(Date.now()-game.state.lastTick<game.config.rules.tickSeconds*1000)return;const snapshot=structuredClone(game.state);try{game.tick();save();}catch(e){game.state=snapshot;console.error('世界更新失败',e);}},1000);
 const cleanup=setInterval(()=>{db.prepare('DELETE FROM sessions WHERE expires<?').run(Date.now());for(const [key,value]of attempts)if(value.reset<Date.now())attempts.delete(key);},60000);
 let shuttingDown=false;
-function shutdown(){if(shuttingDown)return;shuttingDown=true;clearInterval(timer);clearInterval(cleanup);save();console.log('正在安全关闭世界并保存存档…');server.close(()=>{db.close();process.exit(0);});server.closeIdleConnections();setTimeout(()=>server.closeAllConnections(),3000).unref();}
+function shutdown(){if(shuttingDown)return;shuttingDown=true;clearInterval(timer);clearInterval(cleanup);tcp.shutdown();save();console.log('正在安全关闭世界并保存存档…');server.close(()=>{db.close();process.exit(0);});server.closeIdleConnections();setTimeout(()=>server.closeAllConnections(),3000).unref();}
 for(const signal of ['SIGINT','SIGTERM'])process.on(signal,shutdown);
 process.on('message',message=>{if(message?.type==='shutdown')shutdown();});
 // If the GUI crashes, stop instead of leaving a hidden server behind.

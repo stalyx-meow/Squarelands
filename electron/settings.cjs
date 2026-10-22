@@ -18,7 +18,9 @@ function validateServerConfig(value) {
   if (!['0.0.0.0', '127.0.0.1', '::', '::1'].includes(host)) throw new Error('请选择有效的监听地址');
   const port = Number(value.port);
   if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('端口必须是 1024–65535 的整数');
-  return { host, port, autoStart: !!value.autoStart, secureCookie: !!value.secureCookie };
+  const tcpPort = Number(value.tcpPort ?? (port===65535?3211:port+1));
+  if (!Number.isInteger(tcpPort) || tcpPort<1024 || tcpPort>65535 || tcpPort===port) throw new Error('TCP 端口须为不同于网页端口的 1024–65535 整数');
+  return { host, port, tcpPort, autoStart: !!value.autoStart, secureCookie: !!value.secureCookie };
 }
 function readSettings(file, fallback) {
   try { return { ...fallback, ...JSON.parse(fs.readFileSync(file, 'utf8')) }; }

@@ -4,3 +4,8 @@ data/
 .DS_Store
 dist/
 release-artifacts/
+
+# Godot generated imports and exports
+godot/.godot/
+godot/assets/demo.json
+godot/export_credentials.cfg

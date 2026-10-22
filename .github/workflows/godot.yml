@@ -1,0 +1,34 @@
+name: Godot native client
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - name: Install official Godot 4.7 and export templates
+        run: |
+          curl -fL --retry 3 https://github.com/godotengine/godot-builds/releases/download/4.7-stable/Godot_v4.7-stable_linux.x86_64.zip -o /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          chmod +x /tmp/godot/Godot_v4.7-stable_linux.x86_64
+          echo 'GODOT=/tmp/godot/Godot_v4.7-stable_linux.x86_64' >> "$GITHUB_ENV"
+          curl -fL --retry 3 https://github.com/godotengine/godot-builds/releases/download/4.7-stable/Godot_v4.7-stable_export_templates.tpz -o /tmp/templates.zip
+          unzip -q /tmp/templates.zip -d /tmp/godot-templates
+          mkdir -p ~/.local/share/godot/export_templates/4.7.stable
+          cp /tmp/godot-templates/templates/* ~/.local/share/godot/export_templates/4.7.stable/
+      - run: npm run check:godot
+      - run: npm test
+      - run: npm run test:godot
+      - run: npm run pack:godot
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Squarelands-Godot-native
+          path: |
+            dist/native/*.zip
+            dist/native/*.pck
+            dist/native/SHA256SUMS.txt
+          if-no-files-found: error

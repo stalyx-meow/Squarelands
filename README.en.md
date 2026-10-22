@@ -1,81 +1,53 @@
 # Squarelands
 
-[中文](readme.md) · [Gameplay and balance](GAMEPLAY.md) · [Development](DEVELOPMENT.md) · [Downloads](https://github.com/stalyx-meow/Squarelands/releases)
+**A pixel-art multiplayer city builder and trading game. Native Godot client, authoritative Node.js server.**
 
-A multiplayer city-building and trading game with a standalone Electron client and server. Players enter the server IP or domain to join a persistent shared world. The current game code version is **1.3.3** (server launcher 1.2.1). Check the version when downloading; 1.1.0 packages do not include these new features.
+[简体中文](readme.md) · [Native client](godot/README.md) · [TCP protocol](docs/TCP_PROTOCOL.md) · [Releases](https://github.com/stalyx-meow/Squarelands/releases)
 
-## 1.3 update
+![Native Godot client](docs/native-preview.png)
 
-Unified restocking defaults to 5% of capacity and surplus sales retain 95%. Builder/freight pools reserve four workers each. Stations and airports connect directly to city inventory without warehouse adjacency or local feeder costs, time or crew. Stations use a separate railway layer; airports enable fast air freight with fuel at both endpoints. Alliances support invitations, membership applications and approval, member removal, voluntary departure, administrators, internal discounts/tariffs, external embargoes and alliance chat. Customize territory colors, transfer bordering owned tiles or abandon cleared tiles. Infiltration is removed. Root can edit accounts/passwords, tile ownership/terrain and individual building attributes. Shortage shortcuts, per-version release notes and mobile layouts are included. Shipments are visible only to participants, including in root's logistics list.
+## Version 2.0
 
-Stop and back up before installing the universal 1.3 code bundle into the 1.2.1 server launcher. Existing clients reconnect or refresh. Reverting pre-1.3 code requires restoring the pre-update save as well.
+Godot 4.7 replaces the web-style client with a native 2D map, pixel terrain/buildings, repeated placement, territory borders, freight animations and keyboard controls. Inventory, markets, logistics, alliance membership, messages, city automation and root tools use native UI. Chinese and English are supported, with a bundled Chinese font.
 
-## Lightweight updates (1.2.1+)
-
-Routine releases ship one roughly a hundred KiB `.squarelands-update.gz` code bundle for Windows, Linux and macOS. Clients load gameplay from the server; reconnect to update the interface. Existing 1.2.0 clients remain compatible.
-
-Servers older than 1.2.1 need a **one-time full server app upgrade** to gain the installer. Keep the existing data directory. Stop and back up the world, choose **Install update** in the console, select the official bundle without extracting it, then start the world. The console displays the Core version. Code updates preserve accounts, saves and console settings. Rollback restores code only, not save data. Only trusted bundles should be installed; hashes detect corruption, not publisher identity. This format requires save schema 2 and runtime API 1.
-
-Full applications are rebuilt only for initial installation or native launcher/Electron changes. Tags automatically publish the small bundle; full desktop builds are manual GitHub Actions runs.
-
-## What is new
-
-- Automatic intercity supply, including funds, using real freight costs and transport workers.
-- Full categorized resource inventories on a dedicated Storage page, raw ores, smelters/refineries, fuel and expanded food/clothing chains.
-- Manual territory claims; city upgrades increase capacity. Maps expand near claimed borders.
-- Per-player transit policies and automatic sale thresholds per resource.
-- City sales, bordering-tile transfers, railways, airports and alliances.
-- Broadcasts and private messages.
-- Chinese and English UI and an in-game handbook populated from current server settings.
-- Root administration with 439 editable numeric fields, validation, atomic persistence and reset to defaults.
+The client uses a direct TCP connection, default **3211**, with framed JSON and pushed state every two seconds. Unchanged map tiles are cached. Existing accounts, saves and game rules remain compatible. The legacy web endpoint stays on **3210**; the Godot client requires the updated TCP server.
 
 ## Play
 
-1. Open **Squarelands Server**. Its default configuration starts a world on `0.0.0.0:3210`.
-2. Save the initial root password shown once in the console. Share the LAN address with players.
-3. Open **Squarelands Client**, enter the server address, then sign in or register.
-4. For play on the same computer, use `127.0.0.1:3210`.
-5. Found your first city on unclaimed plains, hills or plateau. Secure food, water and power, then clothing, vegetables, staple food and processed meat. Use the shop while building supply chains.
-6. Click **?** for the full English handbook. Use the language button to switch languages; the preference is remembered locally.
+Download the Windows x86_64, Linux x86_64 or macOS universal client from Releases. Extract before running. Windows/Linux require `Squarelands.pck` beside the executable; macOS stores it inside the app. Binaries are unsigned.
 
-Both apps bundle their runtimes. Windows x64 and macOS use ZIP packages; Linux x64 uses tar.gz. Keep the complete extracted directory. macOS supports separate Apple Silicon and Intel packages. Packages are unsigned; Linux GUI apps require a desktop environment. A headless server can run from source.
+Existing v1.2.1 server launchers can install the new `.squarelands-update.gz`: stop, back up, install, restart. Their TCP port defaults to the web port plus one (3211 normally); old launchers may still show only the web URL. New launcher builds expose a separate TCP port setting.
 
-Bare hosts default to HTTP port 3210. Explicit schemes use their normal default port; explicit ports such as `example.com:80` are honored. HTTPS and IPv6 are supported. Do not include a path, credentials, query string or fragment.
+Enter `192.168.1.10:3211`, `game.example.com:3211`, or `tls://game.example.com:3211`. Open/forward the TCP port; an HTTP reverse proxy does not forward raw TCP. For public deployments configure TLS certificates; see [deployment/protocol details](docs/TCP_PROTOCOL.md).
 
-## Administration
+## Controls
 
-Sign in as root inside the game and open **Admin → World parameters**. Categories and search cover prices, inventories, buildings, terrain, workforce, consumption, transport, trade, map expansion, automation and transport infrastructure. Changes are saved with the world. Starting stock applies to new cities; initial map dimensions apply to newly reset worlds. Existing payments, collateral, penalties and dispatched shipments retain their locked values. Lowering capacity does not delete existing stock.
+Drag or WASD to pan, mouse wheel to zoom, click to select. **B** opens construction, **Tab** inventory, **Esc** closes/cancels, **F11** toggles fullscreen. A selected build tool stays active for repeated placement. Cities are on the left, tile details on the right, command menus at the bottom.
 
-The server console starts/stops the world, shows connection addresses, opens the save folder and makes backups after shutdown. Stop and back up before upgrading. Never run two servers against the same database. Schema v2 preserves existing terrain, inventories and contract ledgers and saves the original legacy JSON before migration. Corrupted balances cause an explicit startup error rather than silent resets.
+## Rules
 
-Broadcasts are public. Private messages are visible only to sender and recipient, including when a third-party root views messages. Message retention is limited. Player names, city names and messages stay in their original language. Server logs retain their original text for troubleshooting.
+City upgrades expand claim capacity; tiles must be claimed manually. Default max level is five. Builder/freight reserves default to four each. Refine ores into ingots and oil into fuel. Residents consume several everyday goods. Storage is per resource, money uncapped. Automatic restock defaults to 5% of capacity, sale retention to 95%; customize/disable by resource. Recurring transfers are available.
+
+Rail carries 250 units per worker, air 500, normal freight 50. Eligible affordable rail/air with enough crew takes priority. Rail favors short trips, air long trips, crossing at about 50 equal-distance tiles. Rail has a separate layer and supports owned water tiles. Stations/airports directly access city inventory; both endpoints need operating facilities. Railway must connect station tiles; air needs fuel. Normal freight shows dispatch-time fallback reasons.
+
+Alliances support invitations, applications and approval, removal, departure, administrators, internal discounts/tariffs and external embargoes. Broadcasts are public, whispers private, alliance chat current-member-only. Freight visibility is restricted to participants, including root. Root can edit accounts, tiles and buildings, and adjust 439 world settings.
 
 ## Development
 
-Requires Node.js 24+.
+Node.js 24+ and Godot 4.7 stable are required. Set `GODOT` if the executable is not on PATH; macOS detects `/Applications/Godot.app`.
 
 ```sh
 npm ci
-npm run server:app
-# In another terminal:
+HOST=0.0.0.0 PORT=3210 TCP_PORT=3211 npm start
 npm run desktop
 ```
 
-For a headless server:
+`npm test` checks game rules, persistence and both transports. `npm run check:godot` validates scripts; `npm run test:godot` runs a real native client against a disposable TCP server. `npm run pack:godot` exports Windows/Linux/macOS with matching official templates. `npm run pack:update` makes the small server update. Legacy Electron UI remains available via `npm run desktop:web`.
 
-```sh
-HOST=0.0.0.0 PORT=3210 DATA_DIR=/path/to/world npm run server
-```
+Install future cross-platform `.pck` updates through the native Guide menu; restart to apply or restore bundled resources. Updates live outside signed application bundles, avoiding another runtime download. [Update instructions](godot/README.md#后续客户端小更新). Server and client update formats are distinct.
 
-For HTTPS reverse proxies, preserve Host and explicitly configure `TRUSTED_PROXIES` with only controlled proxy IPs/CIDRs before trusting forwarded client IPs. Use Secure Cookie only behind HTTPS.
+## Saves and licenses
 
-```sh
-npm run check
-npm test
-npm run pack        # Both apps for the current platform
-npm run pack:all    # Eight default packages from macOS
-```
+Accounts/world remain in server `game.sqlite`. Stop the server and back up the whole world directory before upgrading. Version 2.0 retains schema 2; switching clients does not migrate or reset saves. Downgrades require the matching pre-update database. The world freezes while the server is stopped.
 
-The release workflow builds Windows x64, Linux x64, macOS arm64 and macOS x64 for both roles. Cross-compilation does not substitute for testing on each target platform. See [development documentation](DEVELOPMENT.md) for deployment, proxy and packaging details.
-
-Licensed under [MIT](LICENSE).
+Source: [MIT](LICENSE). Noto Sans SC: [SIL OFL](godot/assets/OFL.txt). Godot Engine: MIT; retain engine copyright/license notices in exported distributions.
