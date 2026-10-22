@@ -65,3 +65,7 @@ TCP_TLS_CERT=/absolute/fullchain.pem TCP_TLS_KEY=/absolute/privkey.pem TCP_PORT=
 ## Verification
 
 `npm test` includes a real TCP integration test covering fragmented requests, authentication, access control, actions, pushed state, world cache, logout and invalid frames. `npm run test:godot` starts a disposable server and runs the actual Godot native client against it, including bilingual screens, founding, alliance membership UI and root editing. Existing saves remain schema 2; no account/save conversion is required.
+
+## 2.0.1 连接诊断
+
+域名加端口是合法格式。若客户端收到 HTTP 响应，会明确提示转发目标是网页端口；请将 frp 的内网目标设为游戏 TCP 监听端口（默认 3211），外网端口可保持自定义值。DNS 解析或 TCP 建连失败与地址格式错误分别提示。2.0.1 的本地客户端更新入口在登录前可用，不依赖服务器连接。

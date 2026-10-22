@@ -1,2 +1,4 @@
 import {spawnSync} from 'node:child_process';import {existsSync} from 'node:fs';
 const binary=process.env.GODOT||(existsSync('/Applications/Godot.app/Contents/MacOS/Godot')?'/Applications/Godot.app/Contents/MacOS/Godot':'godot');const result=spawnSync(binary,['--headless','--path','godot','--editor','--quit'],{encoding:'utf8'});const output=(result.stdout||'')+(result.stderr||'');process.stdout.write(output);if(result.error||result.status!==0||/SCRIPT ERROR|Parse Error|Compile Error|ERROR:/.test(output)){console.error(result.error||'Godot validation failed');process.exit(1);}
+
+const validation=spawnSync(binary,["--headless","--path","godot","--script","res://tests/validate.gd"],{encoding:"utf8"});const validationOutput=(validation.stdout||"")+(validation.stderr||"");process.stdout.write(validationOutput);if(validation.error||validation.status!==0||/SCRIPT ERROR|Parse Error|Compile Error|ERROR:/.test(validationOutput))process.exit(1);

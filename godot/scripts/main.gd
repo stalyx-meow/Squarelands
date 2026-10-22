@@ -1,7 +1,9 @@
 extends Control
+const CLIENT_VERSION := "2.0.1"
 const Network = preload("res://scripts/network.gd")
 const WorldMap = preload("res://scripts/world_map.gd")
 var net: SquarelandsConnection
+var backdrop: ColorRect
 var map: SquarelandsMap
 var state: Dictionary = {}
 var pending: Dictionary = {}
@@ -22,6 +24,7 @@ var toast_label: Label
 var toast_timer := 0.0
 var screen: Window
 var active_page := ""
+var form_return_page := ""
 var form_window: Window
 var content: VBoxContainer
 var page_scroll: ScrollContainer
@@ -63,7 +66,13 @@ func button(parent: Node,text: String,callback: Callable) -> Button:
 	parent.add_child(b)
 	return b
 
-func text(parent: Node,value: String,size_px: int=16,color: Color=Color("354c55")) -> Label:
+func emphasize(b: Button) -> void:
+	b.add_theme_stylebox_override("normal",box_style(ACCENT,ACCENT,3))
+	b.add_theme_stylebox_override("hover",box_style(Color("315941"),ACCENT,3))
+	b.add_theme_stylebox_override("pressed",box_style(Color("244632"),ACCENT,3))
+	for color_name in ["font_color","font_hover_color","font_pressed_color","font_focus_color"]:b.add_theme_color_override(color_name,Color("ffffff"))
+
+func text(parent: Node,value: String,size_px: int=16,color: Color=Color("283b35")) -> Label:
 	var node := Label.new()
 	node.text=value
 	node.add_theme_font_size_override("font_size",size_px)
@@ -79,7 +88,7 @@ func clear(parent: Node) -> void:
 		parent.remove_child(node)
 		node.queue_free()
 
-func box_style(color: Color,border: Color=Color("89795d"),radius: int=0) -> StyleBoxFlat:
+func box_style(color: Color,border: Color=Color("8d9a8b"),radius: int=0) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color=color
 	style.border_color=border
@@ -87,15 +96,15 @@ func box_style(color: Color,border: Color=Color("89795d"),radius: int=0) -> Styl
 	style.set_corner_radius_all(radius)
 	style.content_margin_left=14
 	style.content_margin_right=14
-	style.content_margin_top=10
-	style.content_margin_bottom=10
+	style.content_margin_top=12
+	style.content_margin_bottom=12
 	return style
 
 func panel(rect: Rect2) -> PanelContainer:
 	var node := PanelContainer.new()
 	node.position=rect.position
 	node.size=rect.size
-	node.add_theme_stylebox_override("panel",box_style(Color("f0e5c7")))
+	node.add_theme_stylebox_override("panel",box_style(Color("f4f1e5")))
 	add_child(node)
 	return node
 
@@ -111,10 +120,10 @@ func _ready() -> void:
 	if ResourceLoader.exists("res://assets/NotoSansSC.ttf"):
 		var variation := FontVariation.new()
 		var base_font: FontFile=load("res://assets/NotoSansSC.ttf")
-		base_font.antialiasing=TextServer.FONT_ANTIALIASING_NONE
+		base_font.antialiasing=TextServer.FONT_ANTIALIASING_GRAY
 		base_font.multichannel_signed_distance_field=false
 		variation.base_font=base_font
-		variation.variation_opentype={"wght":450.0}
+		variation.variation_opentype={TextServerManager.get_primary_interface().name_to_tag("wght"):520.0}
 		ui_font=variation
 	else:
 		var system := SystemFont.new()
@@ -122,17 +131,39 @@ func _ready() -> void:
 		ui_font=system
 	var theme_new := Theme.new()
 	theme_new.default_font=ui_font
-	theme_new.default_font_size=16
-	theme_new.set_color("font_color","Label",Color("354c55"))
-	for style in ["normal","focus"]: theme_new.set_stylebox(style,"Button",box_style(Color("e2d6b4")))
-	theme_new.set_stylebox("hover","Button",box_style(Color("d1d2ac"),ACCENT))
-	theme_new.set_stylebox("pressed","Button",box_style(Color("b8c39a"),ACCENT))
+	theme_new.default_font_size=17
+	theme_new.set_color("font_color","Label",Color("283b35"))
+	for style in ["normal","focus"]: theme_new.set_stylebox(style,"Button",box_style(Color("e8ecdf")))
+	theme_new.set_stylebox("hover","Button",box_style(Color("d4e2ce"),ACCENT))
+	theme_new.set_stylebox("pressed","Button",box_style(Color("b9cfb6"),ACCENT))
 	theme_new.set_color("font_color","Button",Color("254c49"))
 	theme_new.set_color("font_hover_color","Button",Color("153d39"))
-	theme_new.set_stylebox("normal","LineEdit",box_style(Color("f8edcf")))
+	theme_new.set_stylebox("normal","LineEdit",box_style(Color("fffdf5")))
 	theme_new.set_color("font_color","LineEdit",Color("233f45"))
 	theme_new.set_color("font_placeholder_color","LineEdit",Color("7c9296"))
-	theme_new.set_stylebox("panel","PopupMenu",box_style(Color("f0e5c7")))
+	theme_new.set_stylebox("panel","PopupMenu",box_style(Color("f4f1e5")))
+	for control_type in ["Button","OptionButton","CheckBox","CheckButton"]:
+		for color_name in ["font_color","font_hover_color","font_pressed_color","font_focus_color"]:
+			theme_new.set_color(color_name,control_type,Color("253d31"))
+		theme_new.set_color("font_disabled_color",control_type,Color("69766b"))
+		for style_name in ["normal","hover","pressed","focus","disabled"]:
+			var color := Color("d4e2ce") if style_name in ["hover","pressed"] else Color("e8ecdf")
+			theme_new.set_stylebox(style_name,control_type,box_style(color,ACCENT if style_name=="focus" else Color("a3ad99"),3))
+	for color_name in ["font_color","font_hover_color","font_accelerator_color"]:
+		theme_new.set_color(color_name,"PopupMenu",Color("243a30"))
+	theme_new.set_color("font_disabled_color","PopupMenu",Color("6b7968"))
+	theme_new.set_stylebox("panel","PopupMenu",box_style(Color("fffdf5"),Color("86977e"),3))
+	theme_new.set_stylebox("hover","PopupMenu",box_style(Color("d9e8cc"),Color("b6c4aa"),0))
+	theme_new.set_constant("v_separation","PopupMenu",12)
+	theme_new.set_constant("item_start_padding","PopupMenu",12)
+	theme_new.set_color("font_color","LineEdit",Color("263b32"))
+	theme_new.set_color("font_selected_color","LineEdit",Color("ffffff"))
+	theme_new.set_color("selection_color","LineEdit",ACCENT)
+	theme_new.set_stylebox("focus","LineEdit",box_style(Color("fffdf5"),ACCENT,3))
+	theme_new.set_constant("separation","VBoxContainer",10)
+	theme_new.set_constant("separation","HBoxContainer",10)
+	theme_new.set_constant("h_separation","GridContainer",14)
+	theme_new.set_constant("v_separation","GridContainer",14)
 	theme=theme_new
 	net=Network.new()
 	add_child(net)
@@ -144,6 +175,11 @@ func _ready() -> void:
 	map.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	map.font=ui_font
 	add_child(map)
+	backdrop=ColorRect.new()
+	backdrop.color=Color(0.08,0.14,0.1,0.30)
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop.hide()
+	add_child(backdrop)
 	map.tile_selected.connect(_tile_selected)
 	map.hovered.connect(func(tile):
 		if hint: hint.text="%d, %d  ·  " % [tile.x,tile.y]+tx("拖动地图 · 滚轮缩放 · WASD 平移 · B 建造 · Esc 取消","Drag to pan · Wheel to zoom · WASD · B build · Esc cancel"))
@@ -178,6 +214,11 @@ func notify(value: String) -> void:
 	toast_timer=6
 
 func _process(delta: float) -> void:
+	if is_instance_valid(backdrop):
+		backdrop.visible=(is_instance_valid(screen) and screen.visible) or (is_instance_valid(form_window) and form_window.visible)
+		if backdrop.visible:
+			backdrop.move_to_front()
+			if is_instance_valid(toast_label) and toast_label.visible:toast_label.move_to_front()
 	if toast_timer>0:
 		toast_timer-=delta
 		if toast_timer<=0 and is_instance_valid(toast_label): toast_label.hide()
@@ -188,7 +229,7 @@ func show_login() -> void:
 	if is_instance_valid(screen): screen.hide()
 	if is_instance_valid(form_window): form_window.hide()
 	if is_instance_valid(login_panel): login_panel.queue_free()
-	login_panel=panel(Rect2(Vector2(size.x/2-220,size.y/2-255),Vector2(440,510)))
+	login_panel=panel(Rect2(Vector2(size.x/2-240,size.y/2-300),Vector2(480,600)))
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation",14)
 	login_panel.add_child(col)
@@ -209,6 +250,7 @@ func show_login() -> void:
 	col.add_child(row)
 	button(row,tx("连接并登录","Connect & play"),func():authenticate(false))
 	button(row,tx("注册账号","Register"),func():authenticate(true))
+	button(col,tx("本地更新 · 无需连接服务器","Local updates · no server required"),func():open_page("updates"))
 	button(col,"English / 简体中文",switch_language)
 	text(col,tx("默认 TCP 端口 3211；加密连接可填写 tls://域名:端口。","Default TCP port 3211; use tls://domain:port for TLS."),12)
 
@@ -218,7 +260,7 @@ func authenticate(register_user: bool) -> void:
 	var credentials := {"username":remembered_username,"password":login_fields.password.text}
 	var error := net.open(connected_address)
 	if error!=OK:
-		notify(tx("连接地址无效或无法连接","Invalid address or connection failed"))
+		notify(net.last_error if net.last_error!="" else tx("连接失败，请检查服务端与端口","Connection failed; check server and port"))
 		return
 	pending.clear()
 	var id := net.request("register" if register_user else "login",credentials)
@@ -306,7 +348,7 @@ func switch_language() -> void:
 
 func build_game_ui() -> void:
 	for node in get_children():
-		if node!=map and node!=net and node!=toast_label and not node is Window: node.queue_free()
+		if node!=map and node!=net and node!=backdrop and node!=toast_label and not node is Window: node.queue_free()
 	var header := panel(Rect2(16,12,size.x-32,62))
 	header.name="Header"
 	hud=HBoxContainer.new()
@@ -350,7 +392,7 @@ func build_game_ui() -> void:
 
 func layout_ui() -> void:
 	if is_instance_valid(login_panel):
-		login_panel.position=Vector2(size.x/2-220,size.y/2-255)
+		login_panel.position=Vector2(size.x/2-240,size.y/2-300)
 	for node in get_children():
 		if node.name=="Header": node.size.x=size.x-32
 		elif node.name=="Cities": node.size.y=size.y-250
@@ -447,10 +489,13 @@ func open_page(page: String) -> void:
 	if not is_instance_valid(screen):
 		screen=Window.new()
 		screen.title="Squarelands"
+		screen.theme=theme
+		screen.borderless=true
 		screen.transient=true
 		screen.close_requested.connect(func():screen.hide())
+		screen.window_input.connect(func(event):dialog_key(event,false))
 		add_child(screen)
-	screen.size=Vector2i(mini(1080,int(size.x)-80),mini(680,int(size.y)-80))
+	screen.size=Vector2i(mini(1120,int(size.x)-64),mini(720,int(size.y)-64))
 	screen.popup_centered()
 	render_page(page)
 
@@ -458,7 +503,7 @@ func page_body(title: String) -> VBoxContainer:
 	for child in screen.get_children(): child.queue_free()
 	var background := PanelContainer.new()
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	background.add_theme_stylebox_override("panel",box_style(Color("f0e5c7")))
+	background.add_theme_stylebox_override("panel",box_style(Color("f4f1e5")))
 	screen.add_child(background)
 	var outer := VBoxContainer.new()
 	background.add_child(outer)
@@ -487,6 +532,7 @@ func render_page(page: String) -> void:
 		"messages": render_messages()
 		"settings": render_city_settings()
 		"guide": render_guide()
+		"updates": render_updates()
 		"build": build_menu(false)
 
 	if is_instance_valid(page_scroll): page_scroll.set_deferred("scroll_vertical",saved_scroll)
@@ -504,7 +550,9 @@ func build_menu(open: bool=true) -> void:
 			if def.category!=category: continue
 			var b := button(grid,label_name(def.name),func():set_build_mode(key))
 			b.custom_minimum_size=Vector2(260,56)
-			b.tooltip_text=JSON.stringify(def.cost)+"\n"+tx("岗位 ","Jobs ")+str(def.workers)
+			var costs: PackedStringArray=[]
+			for resource in def.cost:costs.append(resource_name(resource)+" "+str(def.cost[resource]))
+			b.tooltip_text=" · ".join(costs)+"\n"+tx("岗位 ","Jobs ")+str(def.workers)
 
 func render_inventory() -> void:
 	page_body(tx("仓储总览","Warehouse"))
@@ -516,7 +564,7 @@ func render_inventory() -> void:
 	content.add_child(grid)
 	for key in c.stock:
 		var tile := PanelContainer.new()
-		tile.add_theme_stylebox_override("panel",box_style(Color("e2d9b8")))
+		tile.add_theme_stylebox_override("panel",box_style(Color("e9eee1")))
 		grid.add_child(tile)
 		var col := VBoxContainer.new()
 		tile.add_child(col)
@@ -552,8 +600,37 @@ func threshold_form(resource: String) -> void:
 
 func render_market() -> void:
 	page_body(tx("贸易市场","Trade market"))
-	button(content,tx("官方市场买入 / 卖出","Official market buy / sell"),func():show_form(tx("官方市场","Official market"),[{"key":"resource","label":tx("物资","Resource"),"options":resource_options()},{"key":"side","label":tx("方向","Side"),"options":[{"id":"buy","label":tx("买入","Buy")},{"id":"sell","label":tx("卖出","Sell")}]},amount_field()],func(p):act("shop",p)))
-	button(content,tx("发布现货 / 产能订单","Post spot / capacity offer"),func():show_form(tx("发布订单","Post offer"),[{"key":"kind","label":tx("类型","Kind"),"options":[{"id":"spot","label":tx("现货","Spot")},{"id":"capacity","label":tx("未来产能","Capacity")}]},{"key":"resource","label":tx("物资","Resource"),"options":resource_options()},amount_field(),{"key":"price","label":tx("单价","Unit price"),"type":"number","min":.1,"step":.1,"value":1},{"key":"cycles","label":tx("产能期数","Capacity cycles"),"type":"number","min":1,"max":20,"value":3}],func(p):act("offer",p)))
+	var c := current()
+	if c.is_empty():
+		text(content,tx("请先建立或选择自己的城池。","Found or select one of your cities first."))
+		return
+	text(content,c.name+" · "+tx("可用资金 ","Funds ")+str(int(c.stock.money)),16,Color("596b58"))
+	var actions := HBoxContainer.new()
+	content.add_child(actions)
+	button(actions,tx("官方市场买入 / 卖出","Official market buy / sell"),func():show_form(tx("官方市场","Official market"),[{"key":"resource","label":tx("物资","Resource"),"options":resource_options()},{"key":"side","label":tx("方向","Side"),"options":[{"id":"buy","label":tx("买入","Buy")},{"id":"sell","label":tx("卖出","Sell")}]},amount_field()],func(p):act("shop",p)))
+	button(actions,tx("发布现货 / 产能订单","Post spot / capacity offer"),func():show_form(tx("发布订单","Post offer"),[{"key":"kind","label":tx("类型","Kind"),"options":[{"id":"spot","label":tx("现货","Spot")},{"id":"capacity","label":tx("未来产能","Capacity")}]},{"key":"resource","label":tx("物资","Resource"),"options":resource_options()},amount_field(),{"key":"price","label":tx("单价","Unit price"),"type":"number","min":.1,"step":.1,"value":1},{"key":"cycles","label":tx("产能期数","Capacity cycles"),"type":"number","min":1,"max":20,"value":3}],func(p):act("offer",p)))
+	text(content,tx("官方商行","OFFICIAL EXCHANGE"),20,ACCENT)
+	var products := GridContainer.new()
+	products.columns=3 if screen.size.x>=1000 else 2
+	content.add_child(products)
+	for resource in state.settings.prices:
+		var card := PanelContainer.new()
+		card.custom_minimum_size.x=300 if products.columns==3 else 340
+		card.add_theme_stylebox_override("panel",box_style(Color("fffdf5"),Color("c3ccb9"),4))
+		products.add_child(card)
+		var product := VBoxContainer.new()
+		card.add_child(product)
+		text(product,resource_name(resource),19,ACCENT)
+		text(product,tx("本城库存 ","City stock ")+str(int(c.stock.get(resource,0)))+" · "+tx("商行 ","Shop ")+str(int(state.shop.stock.get(resource,0))),14,Color("596b58"))
+		var buying: float=state.settings.prices[resource]*state.settings.economy.buyMultiplier
+		var selling: float=state.settings.prices[resource]*state.settings.economy.sellMultiplier
+		text(product,tx("买入 %.2f  /  卖出 %.2f","Buy %.2f  /  Sell %.2f") % [buying,selling],16)
+		var order_buttons := HBoxContainer.new()
+		product.add_child(order_buttons)
+		for side in ["buy","sell"]:
+			button(order_buttons,tx("买入","Buy") if side=="buy" else tx("卖出","Sell"),func():show_form(resource_name(resource)+" · "+(tx("买入","Buy") if side=="buy" else tx("卖出","Sell")),[amount_field()],func(p):p.resource=resource;p.side=side;act("shop",p)))
+	text(content,tx("玩家订单","PLAYER OFFERS"),20,ACCENT)
+	if state.offers.is_empty():text(content,tx("暂无玩家挂单，可从官方商行购买，或发布自己的订单。","No player offers yet. Trade with the exchange or post your own offer."),15,Color("596b58"))
 	for offer in state.get("offers",[]):
 		var row := HBoxContainer.new()
 		content.add_child(row)
@@ -561,8 +638,8 @@ func render_market() -> void:
 		l.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 		button(row,tx("撤单","Cancel") if offer.owner==state.user.id else tx("买入","Buy"),func():act("cancelOffer" if offer.owner==state.user.id else "buyOffer",{"offerId":offer.id,"cityId":offer.cityId if offer.owner==state.user.id else current_id}))
 	text(content,tx("在售城池","Cities for sale"),20,ACCENT)
-	for c in state.get("cities",[]):
-		if c.get("salePrice")!=null and not mine(c): button(content,c.name+" · "+str(c.salePrice),func():act("buyCity",{"targetId":c.id}))
+	for sale_city in state.get("cities",[]):
+		if sale_city.get("salePrice")!=null and not mine(sale_city): button(content,sale_city.name+" · "+str(sale_city.salePrice),func():act("buyCity",{"targetId":sale_city.id}))
 	for contract in state.get("contracts",[]): text(content,tx("合约 ","Contract ")+resource_name(contract.resource)+" × "+str(contract.amount)+" · "+str(contract.status)+" · "+tx("剩余 ","Remaining ")+str(contract.remaining))
 
 func render_logistics() -> void:
@@ -668,13 +745,25 @@ func policy_form(individual: bool) -> void:
 
 func render_guide() -> void:
 	page_body(tx("方域玩法手册","Squarelands field manual"))
-	button(content,tx("安装客户端资源更新包 .pck","Install client resource update .pck"),install_client_update)
-	button(content,tx("回退到内置客户端资源","Restore bundled client resources"),func():confirm_order(tx("删除资源更新并在重启后恢复内置客户端？","Remove update and restore bundled client after restart?"),func():DirAccess.remove_absolute(ProjectSettings.globalize_path("user://updates/Squarelands.pck"));notify(tx("已回退，请重启客户端","Restored; restart the client"))))
+	button(content,tx("客户端本地更新与回退","Local client updates & rollback"),func():open_page("updates"))
 
 	for chapter in catalog.get("guide",{}).get(language,[]):
 		text(content,chapter.title,21,ACCENT)
 		text(content,chapter.text,17)
 	text(content,tx("原生操作：鼠标拖动平移，滚轮缩放，WASD 移动地图，B 建造，Tab 库存，Esc 关闭窗口/取消建造，F11 全屏。连续放置保留当前工具。车站与机场直连本城仓储。","Native controls: drag to pan, scroll to zoom, WASD to move, B to build, Tab for inventory, Esc to close/cancel, F11 fullscreen. Building placement remains active for repeated construction. Stations and airports directly access city storage."),17)
+
+func render_updates() -> void:
+	page_body(tx("客户端本地更新","Local client updates"))
+	text(content,tx("客户端版本 ","Client version ")+CLIENT_VERSION,18,ACCENT)
+	text(content,tx("离线可用 · 不依赖游戏服务器","OFFLINE READY · NO GAME SERVER REQUIRED"),16,ACCENT)
+	text(content,tx("选择已下载的 .pck 资源包即可安装。退出并重新打开客户端后生效，不会修改世界存档或账号。","Install a downloaded .pck resource pack, then quit and reopen the client. World saves and accounts remain unchanged."),17)
+	button(content,tx("选择并安装 .pck 文件","Choose and install .pck file"),install_client_update)
+	var update_file := ProjectSettings.globalize_path("user://updates/Squarelands.pck")
+	text(content,tx("已有本地资源更新","Local resource update installed") if FileAccess.file_exists(update_file) else tx("当前使用内置资源","Using bundled resources"),18)
+	text(content,update_file,14,Color("596b58"))
+	button(content,tx("打开更新文件夹","Open update folder"),func():DirAccess.make_dir_recursive_absolute(update_file.get_base_dir());OS.shell_open(update_file.get_base_dir()))
+	button(content,tx("回退到内置客户端资源","Restore bundled resources"),func():confirm_order(tx("删除本地更新，重启后恢复内置资源？","Remove the local update and restore bundled resources after restart?"),func():DirAccess.remove_absolute(update_file);notify(tx("已回退，请重启客户端","Restored; restart the client"));open_page("updates")))
+	text(content,tx("注意区分：客户端使用 .pck；服务端 .squarelands-update.gz 需在服务端应用中安装。","Client updates use .pck. Install .squarelands-update.gz server updates through the server app."),15,Color("596b58"))
 
 func install_client_update() -> void:
 	var picker := FileDialog.new()
@@ -703,30 +792,43 @@ func install_client_update() -> void:
 	picker.popup_centered_ratio(.7)
 
 func show_form(title: String,fields: Array,submit: Callable) -> void:
+	form_return_page=active_page if is_instance_valid(screen) and screen.visible else ""
+	if is_instance_valid(screen):screen.hide()
 	if is_instance_valid(form_window): form_window.queue_free()
 	form_window=Window.new()
 	form_window.title=title
+	form_window.theme=theme
+	form_window.borderless=true
 	form_window.transient=true
 	form_window.exclusive=true
-	form_window.size=Vector2i(540,mini(620,120+fields.size()*78))
-	form_window.close_requested.connect(func():form_window.hide())
+	form_window.size=Vector2i(mini(620,int(size.x)-64),mini(int(size.y)-72,190+fields.size()*84))
+	form_window.close_requested.connect(close_form)
+	form_window.window_input.connect(func(event):dialog_key(event,true))
 	add_child(form_window)
 	var bg := PanelContainer.new()
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.add_theme_stylebox_override("panel",box_style(Color("f0e5c7")))
+	bg.add_theme_stylebox_override("panel",box_style(Color("f4f1e5")))
 	form_window.add_child(bg)
 	var scroll := ScrollContainer.new()
 	bg.add_child(scroll)
 	var col := VBoxContainer.new()
 	col.size_flags_horizontal=Control.SIZE_EXPAND_FILL
 	scroll.add_child(col)
-	text(col,title,22,ACCENT)
+	var heading_row := HBoxContainer.new()
+	col.add_child(heading_row)
+	var heading := text(heading_row,title,23,ACCENT)
+	heading.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	button(heading_row,"×",close_form)
+	text(col,tx("确认后由服务端结算。按 Esc 可返回。","Orders are settled by the server. Esc returns."),14,Color("5a6b5b"))
 	var controls: Dictionary={}
 	for field in fields:
 		text(col,str(field.get("label",field.key)),14)
 		var control: Control
 		if field.has("options"):
 			var option := OptionButton.new()
+			option.theme=theme
+			option.get_popup().theme=theme
+			option.get_popup().max_size=Vector2i(600,340)
 			for item in field.options:
 				option.add_item(str(item.label))
 				option.set_item_metadata(option.item_count-1,item.id)
@@ -751,7 +853,7 @@ func show_form(title: String,fields: Array,submit: Callable) -> void:
 		control.custom_minimum_size.y=38
 		col.add_child(control)
 		controls[field.key]=control
-	button(col,tx("确认","Confirm"),func():
+	var submit_button := button(col,tx("确认","Confirm"),func():
 		var p: Dictionary={}
 		for key in controls:
 			var input=controls[key]
@@ -761,9 +863,21 @@ func show_form(title: String,fields: Array,submit: Callable) -> void:
 			elif input is SpinBox: p[key]=input.value
 			elif input is CheckBox: p[key]=input.button_pressed
 			else: p[key]=input.text
-		form_window.hide()
+		close_form()
 		submit.call(p))
+	emphasize(submit_button)
 	form_window.popup_centered()
+
+func dialog_key(event: InputEvent,form: bool) -> void:
+	if event is InputEventKey and event.pressed and event.keycode==KEY_ESCAPE:
+		if form:form_window.set_input_as_handled();close_form()
+		else:screen.set_input_as_handled();screen.hide()
+
+func close_form() -> void:
+	if is_instance_valid(form_window):form_window.hide()
+	var return_page := form_return_page
+	form_return_page=""
+	if return_page!="":open_page(return_page)
 
 func confirm_order(title: String,callback: Callable) -> void:
 	show_form(title,[],func(_p):callback.call())
@@ -819,7 +933,7 @@ func tile_editor() -> void:
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not event is InputEventKey or not event.pressed or event.echo:return
 	if event.keycode==KEY_ESCAPE:
-		if is_instance_valid(form_window) and form_window.visible:form_window.hide()
+		if is_instance_valid(form_window) and form_window.visible:close_form()
 		elif is_instance_valid(screen) and screen.visible:screen.hide()
 		else:build_type="";map.build_mode="";map.queue_redraw()
 	elif event.keycode==KEY_F11:

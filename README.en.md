@@ -44,7 +44,7 @@ npm run desktop
 
 `npm test` checks game rules, persistence and both transports. `npm run check:godot` validates scripts; `npm run test:godot` runs a real native client against a disposable TCP server. `npm run pack:godot` exports Windows/Linux/macOS with matching official templates. `npm run pack:update` makes the small server update. Legacy Electron UI remains available via `npm run desktop:web`.
 
-Install future cross-platform `.pck` updates through the native Guide menu; restart to apply or restore bundled resources. Updates live outside signed application bundles, avoiding another runtime download. [Update instructions](godot/README.md#后续客户端小更新). Server and client update formats are distinct.
+Install future cross-platform `.pck` updates through Local updates on the login screen (also available in Guide); restart to apply or restore bundled resources. Updates live outside signed application bundles, avoiding another runtime download. [Update instructions](godot/README.md#后续客户端小更新). Server and client update formats are distinct.
 
 ## Saves and licenses
 

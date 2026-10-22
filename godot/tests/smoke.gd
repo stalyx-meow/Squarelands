@@ -8,6 +8,13 @@ func run() -> void:
 	app=load("res://scenes/main.tscn").instantiate()
 	root.add_child(app)
 	await process_frame
+	app.open_page("updates")
+	assert(app.screen.visible and not app.net.connected and not app.net.connecting)
+	assert(app.pending.is_empty())
+	if DisplayServer.get_name()!="headless":
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("/private/tmp/squarelands-ui-offline-update.png")
+	app.screen.hide()
 	app.login_fields.address.text=OS.get_environment("SQUARELANDS_TEST_ADDRESS")
 	app.login_fields.username.text="root"
 	app.login_fields.password.text="native-smoke-password"
@@ -32,7 +39,8 @@ func run() -> void:
 			await process_frame
 		app.show_form("QA",[{"key":"n","type":"number","value":4},{"key":"s","value":"hello"},{"key":"b","type":"bool"},{"key":"o","options":[{"id":"a","label":"A"}]}],func(_p):pass)
 		await process_frame
-		app.form_window.hide()
+		app.close_form()
+		assert(app.screen.visible)
 	for facility in [["station",1,0],["airport",-1,0],["warehouse",0,1],["generator",0,-1],["farm",1,1]]:
 		app.send("admin",{"op":"tile","x":tile.x+facility[1],"y":tile.y+facility[2],"ownerCityId":app.current_id,"terrain":"plain","buildingType":facility[0],"level":1,"rail":facility[0]=="station"})
 	while not app.pending.is_empty():await process_frame
@@ -57,5 +65,23 @@ func run() -> void:
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("/private/tmp/squarelands-godot-native.png")
 	print("NATIVE_TCP_SMOKE_PASS: login, pushed state, city founding, bilingual screens, alliance, root editor")
+	if DisplayServer.get_name()!="headless":
+		app.open_page("market")
+		await process_frame
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("/private/tmp/squarelands-ui-market.png")
+		app.show_form(app.tx("官方市场","Official market"),[{"key":"resource","label":app.tx("物资","Resource"),"options":app.resource_options()},{"key":"side","label":app.tx("方向","Side"),"options":[{"id":"buy","label":app.tx("买入","Buy")},{"id":"sell","label":app.tx("卖出","Sell")}]},app.amount_field()],func(_p):pass)
+		assert(not app.screen.visible)
+		await process_frame
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("/private/tmp/squarelands-ui-order.png")
+		var options: Array=app.form_window.find_children("*","OptionButton",true,false)
+		options[1].show_popup()
+		await process_frame
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("/private/tmp/squarelands-ui-dropdown.png")
+		options[1].get_popup().hide()
+		app.close_form()
+		assert(app.screen.visible)
 	app.net.close()
 	quit(0)

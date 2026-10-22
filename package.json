@@ -1,6 +1,6 @@
 {
   "name": "squarelands",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "type": "module",
   "description": "方域 · 多人城市经营与贸易游戏",
@@ -21,7 +21,7 @@
     "pack:update": "node scripts/package-update.mjs",
     "desktop:web": "electron .",
     "pack:godot": "node scripts/package-godot.mjs",
-    "test:godot": "node scripts/godot-smoke.mjs",
+    "test:godot": "node scripts/godot-network-check.mjs && node scripts/godot-smoke.mjs",
     "check:godot": "node scripts/check-godot.mjs"
   },
   "engines": {

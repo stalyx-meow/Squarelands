@@ -16,32 +16,59 @@ var started := 0
 var heartbeat := 0.0
 const MAX_FRAME := 64 * 1024 * 1024
 
+var last_error := ""
+
+static func parse_address(address: String) -> Dictionary:
+	var value := address.strip_edges().replace("：",":")
+	var secure_connection := value.to_lower().begins_with("tls://")
+	if "://" in value:
+		if not value.to_lower().begins_with("tcp://") and not secure_connection:return {"error":"Use tcp:// or tls:// / 请填写 TCP 地址，不要填写网页 URL"}
+		value=value.substr(value.find("://")+3)
+	value=value.trim_suffix("/")
+	var hostname := ""
+	var service_port := 3211
+	var port_text := ""
+	if value.begins_with("["):
+		var end := value.find("]")
+		if end<0:return {"error":"Invalid IPv6 brackets / IPv6 方括号不完整"}
+		hostname=value.substr(1,end-1)
+		if not hostname.is_valid_ip_address():return {"error":"Invalid IPv6 address / IPv6 地址无效"}
+		if value.length()>end+1:
+			if value[end+1]!=":":return {"error":"Invalid port separator / 端口分隔符无效"}
+			port_text=value.substr(end+2)
+	elif value.count(":")==1:
+		var parts := value.split(":")
+		hostname=parts[0]
+		port_text=parts[1]
+	else:hostname=value
+	if (value.ends_with(":") and not value.is_valid_ip_address()) or (not port_text.is_empty() and (not port_text.is_valid_int() or port_text.begins_with("+") or port_text.begins_with("-"))):return {"error":"Invalid port / 端口须为 1–65535 的整数"}
+	if not port_text.is_empty():service_port=port_text.to_int()
+	if service_port<1 or service_port>65535:return {"error":"Port outside 1–65535 / 端口超出 1–65535"}
+	if hostname.is_empty():return {"error":"Server host is empty / 请填写服务端 IP 或域名"}
+	if not hostname.is_valid_ip_address():
+		var label_pattern := RegEx.new()
+		label_pattern.compile("^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$")
+		if hostname.length()>253:return {"error":"Host name is too long / 域名过长"}
+		for label in hostname.trim_suffix(".").split("."):
+			if label_pattern.search(label)==null:return {"error":"Invalid hostname; remove spaces, paths and credentials / 域名格式无效，请移除空格、路径或账号信息"}
+	return {"host":hostname,"port":service_port,"tls":secure_connection}
+
 func open(address: String) -> Error:
 	close()
-	var text := address.strip_edges()
-	use_tls = text.begins_with("tls://")
-	text = text.trim_prefix("tcp://").trim_prefix("tls://")
-	var port := 3211
-	if text.begins_with("["):
-		var end := text.find("]")
-		if end < 0: return ERR_INVALID_PARAMETER
-		host = text.substr(1, end - 1)
-		if text.length() > end + 1:
-			if not text.substr(end + 1).begins_with(":") or not text.substr(end + 2).is_valid_int(): return ERR_INVALID_PARAMETER
-			port = text.substr(end + 2).to_int()
-	elif text.count(":") == 1:
-		var parts := text.split(":")
-		host = parts[0]
-		if not parts[1].is_valid_int(): return ERR_INVALID_PARAMETER
-		port = parts[1].to_int()
-	else:
-		host = text
-	if host.is_empty() or "/" in host or "@" in host or port < 1 or port > 65535: return ERR_INVALID_PARAMETER
-	tcp = StreamPeerTCP.new()
-	var error := tcp.connect_to_host(host, port)
-	if error != OK: return error
-	connecting = true
-	started = Time.get_ticks_msec()
+	last_error=""
+	var parsed := parse_address(address)
+	if parsed.has("error"):
+		last_error=parsed.error
+		return ERR_INVALID_PARAMETER
+	host=parsed.host
+	use_tls=parsed.tls
+	tcp=StreamPeerTCP.new()
+	var error := tcp.connect_to_host(host,int(parsed.port))
+	if error!=OK:
+		last_error="DNS resolution failed / 域名无法解析" if error==ERR_CANT_RESOLVE else "Cannot establish TCP connection / 无法建立 TCP 连接，请检查端口与转发配置"
+		return error
+	connecting=true
+	started=Time.get_ticks_msec()
 	return OK
 
 func close() -> void:
@@ -78,7 +105,7 @@ func _process(delta: float) -> void:
 	tcp.poll()
 	var status := tcp.get_status()
 	if status == StreamPeerTCP.STATUS_ERROR or (connected and status == StreamPeerTCP.STATUS_NONE):
-		fail("Connection lost / 连接已断开")
+		fail("TCP connection failed; check server and port forwarding / TCP 连接失败，请检查服务端和端口映射" if connecting else "Connection lost / 连接已断开")
 		return
 	if connecting and Time.get_ticks_msec() - started > 12000:
 		fail("Connection timeout / 连接超时")
@@ -118,10 +145,13 @@ func _process(delta: float) -> void:
 			fail("Receive failed")
 			return
 		incoming.append_array(received[1])
+	if incoming.size()>=4 and incoming.slice(0,4).get_string_from_ascii()=="HTTP":
+		fail("HTTP endpoint, not game TCP: forward to the server TCP port (default 3211) / 当前端口是网页服务，请将转发目标改为游戏 TCP 端口（默认 3211）")
+		return
 	while incoming.size() >= 4:
 		var length := (int(incoming[0]) << 24) | (int(incoming[1]) << 16) | (int(incoming[2]) << 8) | int(incoming[3])
 		if length < 1 or length > MAX_FRAME:
-			fail("Invalid frame length")
+			fail("Not a Squarelands TCP response; check forwarding target / 收到非游戏 TCP 数据，请检查端口转发目标")
 			return
 		if incoming.size() < length + 4: break
 		var value = JSON.parse_string(incoming.slice(4, length + 4).get_string_from_utf8())
